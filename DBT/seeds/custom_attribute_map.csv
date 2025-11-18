@@ -1,0 +1,6 @@
+name,of,multiple_values,usercontact_column
+industry,person,true
+function,person,false,customtext9 
+source,person,false,source
+source,company,false,customtext2
+sector,company,true,businesssectorlist

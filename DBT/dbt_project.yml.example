@@ -1,0 +1,44 @@
+name: 'transformations'
+version: '1.0.0'
+config-version: 2
+
+profile: 'default'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  source_database: "" # Source DB/schema (e.g. "atlas_dbo")
+  clientName: "" # Client name/slug (e.g. "atlas")
+  agency_id: "" # agency id
+  master_id: "" # fallback id
+  domain: "" # domain name (e.g. "atlas.com")
+  agency_filters:
+    meetings:
+      where_clause: >-
+        (
+          ''
+        )
+    notes:
+      where_clause: >-
+        (
+          ''
+        )
+
+models:
+  transformations:
+    +schema: "" # target schema for models (e.g. "atlas_migrated")
+
+seeds:
+  transformations:
+    +schema: "" # target schema for seeds (e.g. "atlas_migrated")
+

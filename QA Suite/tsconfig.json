@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",          // good for ts-node + ESM
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "strict": true,
+    "outDir": "dist"
+  },
+  "include": ["src/**/*"]          // compile every .ts under src
+}

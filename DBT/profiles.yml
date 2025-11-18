@@ -1,0 +1,14 @@
+# ~/.dbt/profiles.yml  ➊
+default:                       #  ← must match the project file
+  target: dev
+  outputs:
+    dev:
+      type: redshift
+      host: "{{ env_var('REDSHIFT_HOST') }}"
+      port: "{{ env_var('REDSHIFT_PORT', 5439) | int }}"
+      dbname: "{{ env_var('REDSHIFT_DATABASE', 'dev') }}"
+      user: "{{ env_var('REDSHIFT_USER') }}"
+      password: "{{ env_var('REDSHIFT_PASSWORD') }}"
+      schema: "{{ env_var('SCHEMA_PREFIX', '') }}{{ env_var('USER') }}"
+      threads: 2
+      sslmode: prefer

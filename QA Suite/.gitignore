@@ -1,0 +1,16 @@
+# Environment variables
+.env
+
+# Compiled output
+dist/
+
+# Logs
+logs/
+*.log
+
+# Dependencies
+node_modules/
+
+# Editor
+.vscode/
+.idea/

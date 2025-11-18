@@ -1,0 +1,377 @@
+# Global rules applied to every table
+global:
+  iso_timestamp:
+    columns: [created_at, updated_at]  
+  nice_to_have: [created_at, updated_at]
+  required: [atlas_id]
+  
+# Table-specific rules (wildcards allowed ─ fnmatch syntax)
+tables:
+
+  person_custom_attribute_values*:
+    required: [atlas_id, person_id, atlas_person_id, atlas_custom_attribute_id, atlas_option_id]  
+    nice_to_have: [id, value]
+    uuid_columns: [atlas_id, atlas_person_id, atlas_custom_attribute_id, atlas_option_id]
+    unique: [id, atlas_id]
+    not_null: [atlas_id, person_id, atlas_person_id, atlas_custom_attribute_id, atlas_option_id]
+
+  company_custom_attribute_values*:
+    required: [atlas_id, company_id, atlas_company_id, atlas_custom_attribute_id, atlas_option_id]  
+    nice_to_have: [id, value]
+    uuid_columns: [atlas_id, atlas_company_id, atlas_custom_attribute_id, atlas_option_id]
+    unique: [id, atlas_id]
+    not_null: [atlas_id, company_id, atlas_company_id, atlas_custom_attribute_id, atlas_option_id]
+
+  meeting_custom_attribute_values*:
+    required: [atlas_id, atlas_meeting_id, atlas_custom_attribute_id, atlas_option_id]  
+    nice_to_have: [id, meeting_id,value]
+    uuid_columns: [atlas_id, atlas_meeting_id, atlas_custom_attribute_id, atlas_option_id]
+    unique: [id, atlas_id]
+    not_null: [atlas_id, meeting_id, atlas_meeting_id, atlas_custom_attribute_id, atlas_option_id]
+
+  project_custom_attribute_values*:
+    required: [atlas_id, project_id, atlas_project_id, atlas_custom_attribute_id, atlas_option_id]  
+    nice_to_have: [id,value]
+    uuid_columns: [atlas_id, atlas_ptoject_id, atlas_custom_attribute_id, atlas_option_id]
+    unique: [id, atlas_id]
+    not_null: [atlas_id, project_id,atlas_project_id, atlas_custom_attribute_id, atlas_option_id]
+ 
+  people_references*:
+  # In this table, the person_id is the person RECEIVING the reference. The other person and the relatiomship is in the people_relatonships table
+    required: [id, atlas_id, person_id, atlas_person_id, atlas_relationship_id, source, text, created_by_atlas_id]
+    not_null: [id, atlas_id, person_id, atlas_person_id, atlas_relationship_id, source, text, created_by_atlas_id]
+    iso_timestamp: [created_at, updated_at]
+    uuid_columns: [atlas_id, atlas_person_id, atlas_relationship_id, created_by_atlas_id]
+    unique: [id, atlas_id]
+    allowed_values:
+      source: ["candidate", "other", "we_sourced"]
+
+
+  people_relationships*:
+    required: [id, atlas_id, person_id, atlas_person_id, subordinate_id, atlas_subordinate_id, relationship_type,created_by_atlas_id]
+    not_null: [id, atlas_id, person_id, atlas_person_id, subordinate_id, atlas_subordinate_id, relationship_type,created_by_atlas_id]
+    nice_to_have: [company_id, atlas_company_id]
+    iso_timestamp: [created_at, updated_at]
+    uuid_columns: [atlas_id, atlas_subordinate_id,atlas_company_id, atlas_person_id, created_by_atlas_id]
+    unique: [id, atlas_id]
+    allowed_values:
+      relationship_type: ["direct_manager", "peer", "other"]
+
+  people_salaries*:
+    required: [atlas_id, created_at, updated_at, created_by_id, person_id, atlas_person_id,currency,created_by_atlas_id]
+    not_null: [id, atlas_id, created_at, updated_at, created_by_id, person_id, atlas_person_id, created_by_atlas_id, currency, tax_method, expected_salary_type, source, type] 
+    iso_timestamp: [created_at, updated_at, relevant_date]
+    uuid_columns: [atlas_id, created_by_atlas_id]
+    unique: [id, atlas_id]
+    nice_to_have: [id, relevant_date]
+    currency: [currency]
+    numeric: [basic_salary, bonus_salary, total_salary, expected_salary_min, expected_salary_max]
+    allowed_values:
+      type: ["actual", "expected"]
+      tax_method: ["gross", "net","daily_rate","hourly_rate"]
+      expected_salary_type: ["basic","gross","total"]
+      source: ["migration", "email","note","interview"]
+    warn_null:
+      basic_salary: 0.2
+      bonus_salary: 0.1
+      total_salary: 0.2
+      expected_salary_min: 0.5
+      expected_salary_max: 0.5
+      country: 0.2
+      benefits: 0.2
+      notes: 0.2
+
+
+  gdpr_emails*:
+    required: [atlas_id, person_id,atlas_person_id, atlas_sender_id,sent_at]
+    not_null: [id,atlas_id, person_id,atlas_person_id, sender_id, atlas_sender_id, sent_at]
+    nice_to_have: [id, sender_id]
+    uuid_columns: [atlas_id, atlas_person_id, atlas_sender_id]
+    unique: [id, atlas_id]
+    iso_timestamp: [sent_at]
+  
+  person_notes*:
+    required: [id, atlas_id, created_at, updated_at, person_id, atlas_person_id, text, created_by_id, created_by_atlas_id, type]
+    not_null: [id, atlas_id, created_at, updated_at, person_id, atlas_person_id, text, created_by_atlas_id, type]
+    uuid_columns: [atlas_id, created_by_atlas_id, atlas_person_id]
+    unique: [atlas_id]
+    no_html_columns: [text]
+    allowed_values:
+      type: ["phone_call", "manual"]
+
+  company_notes*:
+    required: [id, atlas_id, created_at, updated_at, company_id, atlas_company_id, text, created_by_id, created_by_atlas_id, type]
+    not_null: [id, atlas_id, created_at, updated_at, company_id, atlas_company_id, text, created_by_id, created_by_atlas_id, type]
+    uuid_columns: [atlas_id, created_by_atlas_id, atlas_company_id]
+    unique: [id, atlas_id]
+    no_html_columns: [text]
+
+  people*:
+    required: [first_name, last_name, id, atlas_id, created_by_id, created_by_atlas_id, updated_by_id, updated_by_atlas_id, responsiveness, candidate_status, location_locality]                               # must exist
+    nice_to_have: [location_name, location_locality, location_street_address, location_metro, location_country, location_postal_code]
+    trim: [first_name, last_name]
+    unique:
+      - id
+      - atlas_id
+
+    warn_null:                               # soft threshold
+      created_by_id: 0.20
+      updated_by_id: 0.20
+      location_name: 0.00
+      location_locality: 0.50
+      location_street_address: 0.50
+      location_country: 0.50
+      location_postal_code: 0.10
+
+    error_null:
+      location_locality: 0.2
+
+    location_coverage: 0.5                   # At least 50% of rows must have at least one location field filled
+
+    uuid_columns:                            # UUID regex
+      - atlas_id
+      - created_by_atlas_id
+      - updated_by_atlas_id
+
+    constant:                                # every row must equal value
+      responsiveness: active
+      candidate_status: regular
+
+    constant_across_table:                   # all rows must share one value
+      - agency_id
+
+
+
+  project_users*:
+    required: [atlas_id, user_id, atlas_user_id, project_id, atlas_project_id]
+    not_null: [id, atlas_id, user_id, atlas_user_id, project_id, atlas_project_id]
+    nice_to_have: [id]
+    iso_timestamp: [created_at, updated_at]
+    uuid_columns: [atlas_id, atlas_user_id, atlas_project_id]
+    unique: [id, atlas_id]
+  
+  company_relationships*:
+    required: [atlas_id, company_id, atlas_company_id, subsidiary_id, atlas_subsidiary_id, relationship_type,created_by_atlas_id]
+    not_null: [atlas_id, company_id, atlas_company_id, subsidiary_id, atlas_subsidiary_id, relationship_type,created_by_atlas_id]
+    iso_timestamp: [created_at, updated_at]
+    uuid_columns: [atlas_id, atlas_subsidiary_id, atlas_company_id, created_by_atlas_id]
+    unique: [id, atlas_id]
+    allowed_values:
+      relationship_type: ["parent","investment"] #if we don't explicitly have investment, it is parent
+
+
+# Here, we can use identity_type_type = personal for Linkedin. Even though its empty in the DB, we want to be able to QA this column
+  person_identities*:
+    required: [atlas_id, value, favourite, active, type, identity_type_type, class_type, person_id, atlas_person_id, source]
+    not_null: [atlas_id, value, favourite, active, type, identity_type_type, class_type, person_id, atlas_person_id, source]
+    nice_to_have: [id,inactive_reason]
+    uuid_columns: [id, atlas_id, created_by_atlas_id, updated_by_atlas_id]
+    unique: [id, atlas_id, value]
+    allowed_values:
+      type: ["phone", "email", "linkedin", "github"]
+      inactive_reason: ["unsubscribed"]
+      identity_type_type: ["personal", "corporate"]
+      class_type: ["EmailPersonIdentity", "PhonePersonIdentity", "LinkedinPersonIdentity", "SocialPersonIdentity"]
+    boolean_is:
+      verified: true
+    isBoolean:
+      - favourite
+      - active
+      - verified
+    constant:                                # every row must equal value
+      source: migration
+ 
+  companies*:
+    required: [atlas_id, name, relationship]
+    not_null: [id, atlas_id, name, relationship]
+    nice_to_have: [location_locality, location_name, location_metro, location_street_address, location_country, summary,created_at,updated_at,size,restriction_relevant_id, restiction_note, restriction_expiry_date]
+    uuid_columns: [atlas_id, created_by_atlas_id, updated_by_atlas_id]
+    unique: [id, atlas_id]
+    warn_null:
+      location_name: 0.50
+      location_locality: 0.50
+    allowed_values:
+      relationship: ["none", "target", "client"]
+      company_size: ["1-10", "11-50", "51-200", "201-500", "501-1000", "1001-5000", "5001-10000", "10000+"]
+
+
+  company_identities*:
+    required: [atlas_id, company_id, atlas_company_id, type, value]
+    not_null: [atlas_id, company_id, atlas_company_id, type, value]
+    nice_to_have: [id]
+    uuid_columns: [atlas_id, atlas_company_id]
+    unique: [id, atlas_id, value]
+    allowed_values:
+      type: ["website","linkedin","facebook","phone","crunchbase","twitter","x","instagram","youtube","tiktok","pinterest"]
+    isBoolean:
+      - is_primary
+    booleanIsMixed:
+      is_primary: true
+    # URL formatting: no scheme (http/https), no leading www, no trailing slash
+    url: [value]
+      
+  experiences*:
+    required: [atlas_id, atlas_person_id, source, started_at, finished_at, title, company_name]
+    not_null: [id, atlas_id, person_id, atlas_person_id, source, started_at, company_name]
+    unique: [id, atlas_id]
+    nice_to_have: [company_id, atlas_company_id, description,title]
+    uuid_columns: [atlas_id, atlas_company_id, atlas_person_id]
+    warn_null:
+      company_id: 0.90
+      title: 0.8
+    constant:                                # every row must equal value
+      source: migration
+    date_ymd_columns: [started_at,finished_at]
+    no_html_columns: [description]
+
+  educations*:
+    required: [atlas_id, person_id, atlas_person_id] # name is the instutution name
+    not_null: [atlas_id, person_id, atlas_person_id]
+    unique: [id, atlas_id]
+    nice_to_have: [degree, field_of_study, description, grade, name]
+    uuid_columns: [atlas_id, atlas_person_id]
+    constant:                                # every row must equal value
+      source: migration
+    date_ymd_columns: [started_at,finished_at]
+    warn_null:
+      name: 0.2
+      degree: 0.2
+      field_of_study: 0.2
+      description: 0.75
+      grade: 0.75
+
+  projects*:
+    required: [id, atlas_id, job_role, state, owner_id, atlas_owner_id,job_number]
+    not_null: [id, atlas_id, job_role, state]
+    nice_to_have: [company_id, atlas_company_id,job_description_text, close_reason, closed_at, contract_type, location_locality, notes, expected_fee, salary_currency]
+    uuid_columns: [atlas_id, atlas_company_id, atlas_owner_id]
+    unique: [id, atlas_id, job_number]
+    currency: [salary_currency]
+    warn_null:
+      contract_type: 0.50
+      location_locality: 0.50
+      expected_fee: 0.50
+      salary_currency: 0.50
+      company_id: 0.80
+    
+    constant:
+      class_type: "project"
+    allowed_values:
+      state: ["active", "closed", "on_hold", "lead", "talent_pool"]
+      close_reason: ["cancelled", "won", "worked_lost", "lead_lost"]
+      contract_type: ["full_time", "contract","non_exec","part_time"]
+  
+  project_company_contacts_*:
+    required: [project_id, atlas_project_id, atlas_company_contact_id]
+    not_null: [project_id, atlas_project_id, company_contact_id, atlas_company_contact_id]
+    nice_to_have: [company_contact_id]
+    
+  company_contacts*:
+    required: [atlas_id, atlas_person_id, company_id, atlas_company_id, relationship, title]
+    nice_to_have: [id, person_id]
+    uuid_columns: [atlas_id, atlas_person_id, atlas_company_id]
+    unique: [id, atlas_id]
+    not_null: [atlas_id, atlas_person_id, company_id, atlas_company_id, relationship, title]
+    allowed_values:
+      relationship: ["client","prospect","none"]
+
+  candidates*:
+    required: [atlas_id, person_id, atlas_person_id, project_id, atlas_project_id, status, atlas_owner_id]
+    not_null: [atlas_id, person_id, atlas_person_id, project_id, atlas_project_id, status, owner_id, atlas_owner_id]
+    nice_to_have: [rejection_type, rejection_reason, rejected_at,atlas_rejected_by_id]
+    uuid_columns: [atlas_id, atlas_person_id, atlas_project_id, atlas_owner_id, atlas_rejected_by_id]
+    unique: [id, atlas_id]
+    iso_timestamp: [rejected_at]
+    allowed_values:
+      status: ["Added", "Internal IV", "Presented", "Client IV", "Offer", "Hired"]
+      rejection_type: ["by_client", "by_us", "self"]
+      rejection_reason: ["not_qualified","above_budget","accepted_another_offer","cultural_fit","location","other"]
+    
+    
+  custom_attributes*:
+    required: [atlas_id, multiple_values, of, name,ai]
+    nice_to_have: [id, type]
+    uuid_columns: [atlas_id]
+    unique: [id, atlas_id]
+    not_null: [id, atlas_id, multiple_values, of, name,ai]
+    allowed_values:
+      type: ["options"]
+      of: ["company", "person", "interview","project"]
+    isBoolean:
+      - multiple_values
+      - ai
+
+  custom_attribute_options*:
+    required: [atlas_id, atlas_attribute_id, value, position]
+    not_null: [id, atlas_id, atlas_attribute_id, value, position]
+    nice_to_have: [id, attribute_id]
+    uuid_columns: [atlas_id, atlas_attribute_id]
+    unique: [id, atlas_id]
+    no_html_columns: [value]
+    consecutive_attribute_positions: true
+    # For Pavel, do we need to migrate the position or is the position created in the import script.
+    
+    
+      
+  meetings*:
+    required: [atlas_id,created_at,updated_at,notes,person_id,atlas_person_id,status,name]
+    not_null: [atlas_id,created_at,updated_at,person_id,atlas_person_id,status]
+    nice_to_have: [id]
+    uuid_columns: [atlas_id,atlas_person_id]
+    unique: [id,atlas_id]
+    iso_timestamp: [created_at,updated_at]
+    no_html_columns: [notes]
+    allowed_values:
+      status: ["transcribed", "completed"]
+      name: ["migrated meeting"]
+
+  users*:
+    required: [id,atlas_id,name,email,status]
+    not_null: [id,atlas_id,name,email,status]
+    uuid_columns: [atlas_id]
+    unique: [id,atlas_id, email]
+    email: [email]
+    allowed_values:
+      status: ["active","disabled"]
+      # Some DBs have No user emails but they are vital for us. So if email is null, we should create firstname.lastname@domain.com as a dummy. They can change it later
+  
+  fee_types*:
+    required: [atlas_id, created_at, updated_at, name, project_fee_type, created_by_atlas_id]  
+    not_null: [id, atlas_id, created_at, updated_at, created_by_id, created_by_atlas_id, name, project_fee_type]  
+    iso_timestamp: [created_at, updated_at]
+    uuid_columns: [atlas_id, created_by_atlas_id]
+    unique: [id, atlas_id, name]
+    nice_to_have: [id]
+    constant:
+      project_fee_type: "fee"
+      
+  project_fees*:
+    required: [atlas_id,fee_date,amount,currency,project_fee_status,project_id,atlas_project_id,fee_type_id] #The script will use the fee_type text to create or utilise the exisintg project_fee_types table
+    nice_to_have: [created_by_id,atlas_created_by_id,paid_at,external_id,invoiced_at,start_date,end_date,payment_currency,charge_currency,charge_amount,payment_type,category,person_id,atlas_person_id,notes] 
+    not_null: [atlas_id,fee_date,amount,currency,project_fee_status,project_id,atlas_project_id]
+    uuid_columns: [atlas_id,atlas_project_id,atlas_person_id,atlas_created_by_id]
+    unique: [id,atlas_id]
+    iso_timestamp: [paid_at,invoiced_at,start_date,end_date]
+    currency: [currency, payment_currency, charge_currency]
+    numeric: [amount, charge_amount]
+    allowed_values:
+      project_fee_status: ["projected", "earned", "invoiced", "paid"]
+      payment_type: ["daily","hourly"] #payment_type is only relevant for contrat fees and is either daily or hourly
+      category: ["contract","placement",""] #Category is either null (when there is no placement), placement if its a normal placement or contract if its a contractor
+      #When you are uploading a contract, the payment_currency is the currenccy the client is paying the agency, the charge_currency is the currnecy that the contractor is being paid in
+      #When you are uploading a contract, the payment amount uses amount wheres the amount the contracot gets is the charge_amount
+  
+  project_fee_splits:
+    required: [atlas_id,shar,fee_earner_id,atlas_fee_earner_id,project_id,atlas_project_id]
+    nice_to_have: [id,created_by_id,atlas_created_by_id,fee_type_id,notes]
+    not_null: [id]
+    unique: [id, atlas_id]
+    uuid_columns: [atlas_id,atlas_project_id,atlas_fee_earner_id,atlas_created_by_id]
+
+  placements:
+    required: [atlas_id,atlas_project_id,created_at,atlas_candidate_id]
+    nice_to_have: [id,atlas_project_fee_id,project_id,candidate_id]
+    iso_timestamp: [created_at]
+    unique: [atlas_id,id]
+    uuid_columns: [atlas_id,atlas_project_id,atlas_candidate_id,atlas_project_fee_id]
+    

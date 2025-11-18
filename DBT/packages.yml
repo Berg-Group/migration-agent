@@ -1,0 +1,7 @@
+# packages.yml  (replace the versions with what you actually want)
+packages:
+  - package: dbt-labs/codegen      # ✔ no “name:” key
+    version: 0.13.1
+
+  - package: dbt-labs/dbt_utils
+    version: 1.3.0                 # latest today, works with dbt 1.9

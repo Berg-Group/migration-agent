@@ -1,0 +1,33 @@
+{
+  "name": "migration_test_suit_ts",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "qa": "node --loader ts-node/esm src/cli.ts",
+    "qa:quiet": "QUIET_MODE=true node --loader ts-node/esm src/cli.ts",
+    "start": "node --loader ts-node/esm src/index.ts",
+    "build": "tsc",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/dotenv": "^8.2.3",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.15.14",
+    "@types/pg": "^8.15.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "dotenv": "^16.5.0",
+    "js-yaml": "^4.1.0",
+    "minimatch": "^10.0.1",
+    "pg": "^8.15.6",
+    "zod": "^3.24.4"
+  }
+}
