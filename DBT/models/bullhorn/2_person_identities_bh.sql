@@ -18,10 +18,9 @@ WITH source_people AS (
         p.atlas_id AS atlas_person_id,
         '{{ var("agency_id") }}' AS agency_id,
         '{{ var("master_id") }}' AS created_by_id,
-        {{ linkedin_norm("u.customtext1") }} AS linkedin_clean,
-        {{ linkedin_norm("ac.customtext22") }} AS linkedin_clean_2
+        {{ linkedin_norm("u.customtext2") }} AS linkedin_clean,
+        {{ linkedin_norm("u.customtext3") }} AS linkedin_clean_2
     FROM {{ var('source_database') }}."bh_usercontact" u
-    LEFT JOIN {{ var('source_database') }}."bh_useradditionalcustomfields" ac ON ac.userid = u.userid
     INNER JOIN {{ ref('1_people_bh') }} p ON p.id = u.userid
 ),
 source_dupe_people AS (
@@ -38,10 +37,9 @@ source_dupe_people AS (
         p.atlas_id AS atlas_person_id,
         '{{ var("agency_id") }}' AS agency_id,
         '{{ var("master_id") }}' AS created_by_id,
-        {{ linkedin_norm("u.customtext1") }} AS linkedin_clean,
-        {{ linkedin_norm("ac.customtext22") }} AS linkedin_clean_2
+        {{ linkedin_norm("u.customtext2") }} AS linkedin_clean,
+        {{ linkedin_norm("u.customtext3") }} AS linkedin_clean_2
     FROM {{ var('source_database') }}."bh_usercontact" u
-    LEFT JOIN {{ var('source_database') }}."bh_useradditionalcustomfields" ac ON ac.userid = u.userid
     INNER JOIN {{ ref('people_dupes_bh') }} pd ON pd.contact_id = u.userid
     INNER JOIN {{ ref('1_people_bh') }} p ON p.id = pd.candidate_id
 ),

@@ -30,7 +30,7 @@ mapped_projects AS (
         mu.atlas_fee_earner_id,
         mu.commissionpercentage
     FROM mapped_users mu
-    INNER JOIN {{ ref('10_projects_bh') }} p ON p.id = mu.project_id
+    INNER JOIN {{ ref('11_projects_bh') }} p ON p.id = mu.project_id
 )
 SELECT 
     id,
@@ -42,4 +42,4 @@ SELECT
     (commissionpercentage::numeric(18,6) * 100)::numeric(18,2) AS share,
     '{{ var("agency_id") }}' AS agency_id
 FROM mapped_projects
-INNER JOIN {{ ref('14_fee_types_bh') }} ift ON ift.agency_id = '{{ var("agency_id") }}'
+INNER JOIN {{ ref('15_fee_types_bh') }} ift ON ift.agency_id = '{{ var("agency_id") }}'

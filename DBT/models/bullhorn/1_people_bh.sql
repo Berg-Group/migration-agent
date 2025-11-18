@@ -18,6 +18,7 @@ WITH base AS (
         btrim(regexp_replace(coalesce(c.Address2,''), '[^a-zA-Z0-9 ]+', ' ')) AS address2,
         btrim(regexp_replace(coalesce(c.City,''), '[^a-zA-Z0-9 ]+', ' ')) AS location_locality,
         btrim(regexp_replace(coalesce(c.State,''), '[^a-zA-Z0-9 ]+', ' ')) AS location_region,
+        btrim(regexp_replace(coalesce(c.Zip,''), '[^a-zA-Z0-9 ]+', ' ')) AS location_postal_code,
         btrim(regexp_replace(coalesce({{ country_bh('c.CountryID') }}, ''), '[^a-zA-Z0-9 ]+', ' ')) AS location_country,
         c.linkeduserid
     FROM {{ var("source_database") }}."bh_usercontact" c
@@ -40,6 +41,7 @@ SELECT
     END AS location_street_address,
     location_locality,
     location_region,
+    location_postal_code,
     location_country,
     NULL AS created_by_id,
     NULL AS updated_by_id,
@@ -47,5 +49,6 @@ SELECT
     '{{ var("master_id") }}' AS updated_by_atlas_id,
     linkeduserid
 FROM base
+INNER JOIN {{ ref('people_to_import') }} pi ON pi.person_id = base.id
 WHERE id NOT IN (SELECT contact_id FROM {{ ref('people_dupes_bh') }}) 
     AND id NOT IN (SELECT id FROM {{ ref('0_users_bh') }})

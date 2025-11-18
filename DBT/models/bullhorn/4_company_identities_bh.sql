@@ -8,13 +8,7 @@ WITH source_data AS (
     SELECT
         bc."ClientCorporationID" AS company_id,
         NULLIF(TRIM(bc."phone"), '') AS phone,
-        NULLIF(
-            REGEXP_REPLACE(
-                REGEXP_REPLACE(LOWER(bc."companyURL"),
-                              '^https?://(www\\.)?', ''),
-                '/$', ''
-            ), ''
-        ) AS website,
+        {{ website_norm("bc.companyURL") }} AS website,
         {{ linkedin_norm("bc.linkedinprofilename") }} AS linkedin
     FROM {{ var('source_database') }}."bh_clientcorporation" bc
 ),

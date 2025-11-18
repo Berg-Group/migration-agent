@@ -10,16 +10,11 @@ WITH base AS (
         {{ atlas_uuid("'" ~ var('clientName') ~ "' || bc.\"ClientCorporationID\"::text") }} AS atlas_id,
         bc."name" AS name,
         {{ html_to_markdown('bc.CompanyDescription') }} AS summary,
-        CASE
-            WHEN LOWER(TRIM(bc."status")) IN (
-                'terms agreed (ad)', 'inactive account (ad)', 'active account tier 3 (ad)', 'active account tier 2 (ad)', 'active account tier 1 (ad)',
-                'active account', 'active', 'passive account', 'cold account'
-            ) THEN 'client'
-            WHEN LOWER(TRIM(bc."status")) IN (
-                'active target (bd)', 'prospect (bd)', 'engaged (bd)', 'inactive target (bd)', 'prospect', 'unknown', 'prospects'
-            ) THEN 'target'
-            ELSE 'none'
-        END AS relationship,
+		CASE
+			WHEN LOWER(TRIM(bc."status")) IN ('active', 'terms signed') THEN 'client'
+			WHEN LOWER(TRIM(bc."status")) IN ('archive', 'passive', 'prospect') THEN 'none'
+			ELSE 'none'
+		END AS relationship,
         bc."address1" AS address1,
         bc."address2" AS address2,
         bc.city AS city,
@@ -58,3 +53,4 @@ SELECT
     restriction_type,
     size
 FROM base
+INNER JOIN {{ ref('companies_to_import') }} ci ON ci.company_id = base.id

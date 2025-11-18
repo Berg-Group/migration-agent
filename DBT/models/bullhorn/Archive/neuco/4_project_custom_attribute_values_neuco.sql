@@ -9,7 +9,7 @@ WITH internal_projects AS (
         id AS project_id,
         atlas_id AS atlas_project_id
     FROM 
-        {{ ref('10_projects_bh') }}
+        {{ ref('11_projects_bh') }}
 ),  
 internal_options AS (
     SELECT 

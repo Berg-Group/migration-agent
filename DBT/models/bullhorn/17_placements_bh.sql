@@ -11,7 +11,7 @@ SELECT
     c.atlas_id AS atlas_candidate_id,
     f.id AS project_fee_id,
     f.atlas_id AS atlas_project_fee_id
-FROM {{ ref('15_project_fees_bh') }} f
-INNER JOIN {{ ref('12_candidates_bh') }} c 
+FROM {{ ref('16_project_fees_bh') }} f
+INNER JOIN {{ ref('13_candidates_bh') }} c 
     ON c.project_id = f.project_id 
    AND c.person_id = f.candidate_id

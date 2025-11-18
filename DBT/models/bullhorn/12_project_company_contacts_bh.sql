@@ -27,7 +27,7 @@ mapped_projects AS (
         mcc.company_contact_id,
         mcc.atlas_company_contact_id
     FROM mapped_company_contacts mcc
-    INNER JOIN {{ ref('10_projects_bh') }} p ON mcc.project_id = p.id
+    INNER JOIN {{ ref('11_projects_bh') }} p ON mcc.project_id = p.id
 )
 SELECT
     project_id,

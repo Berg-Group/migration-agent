@@ -19,23 +19,25 @@ WITH base_data AS (
                 '1st interview', '2nd interview', '3rd interview', 'final interview',
                 '1st phone screen', '2nd phone screen', '1st onsite interview', '2nd onsite interview',
                 'technical test', 'reference check',
-                'interview', 'further interview', 'interview rejected', 'interview/rejected'
+                'interview', 'further interview', 'interview rejected', 'interview/rejected',
+                '1st stage', 'first stage', 'mid stage', 'second interview', 'technical interview'
             ) THEN 'Client IV'
             WHEN LOWER(TRIM(r.status)) IN (
                 'rejected', 'new lead', 'shortlist', 'longlist', 'long list',
                 'candidate rejected', 'rejected not submitted', 'of interest', 'longlist - screened', 'consultant rejected',
-                'client rejected', 'rejected by client', 'online response'
+                'client rejected', 'rejected by client', 'online response',
+                'candidate interested', 'candidate not interested', 'sales rep rejected'
             ) THEN 'Added'
             WHEN LOWER(TRIM(r.status)) IN ('offer extended', 'offer rejected') THEN 'Offer'
             WHEN LOWER(TRIM(r.status)) IN (
-                'submitted to client', 'cv sent', 'submitted', 'new submission', 'submission'
+                'submitted to client', 'cv sent', 'submitted', 'new submission', 'submission', 'client submission'
             ) THEN 'Presented'
-            WHEN LOWER(TRIM(r.status)) IN ('screened', 'shortlisted') THEN 'Internal IV'
+            WHEN LOWER(TRIM(r.status)) IN ('screened', 'shortlisted', 'internally submitted', 'interview scheduled') THEN 'Internal IV'
             WHEN LOWER(TRIM(r.status)) IN ('candidate interested') THEN 'Interested'
         END AS status,
         CASE 
-            WHEN LOWER(TRIM(r.status)) IN ('rejected', 'rejected not submitted', 'consultant rejected') THEN 'by_us'
-            WHEN LOWER(TRIM(r.status)) IN ('candidate rejected', 'offer rejected')  THEN 'self'
+            WHEN LOWER(TRIM(r.status)) IN ('rejected', 'rejected not submitted', 'consultant rejected', 'sales rep rejected') THEN 'by_us'
+            WHEN LOWER(TRIM(r.status)) IN ('candidate rejected', 'offer rejected', 'candidate not interested')  THEN 'self'
             WHEN LOWER(TRIM(r.status)) IN (
                 'interview rejected', 'interview/rejected', 'rejected by client', 'client rejected', 'rejected by client'
             )THEN 'by_client'
@@ -78,7 +80,7 @@ with_project_ids AS (
         wp.*,
         pr.atlas_id AS atlas_project_id
     FROM with_placed wp
-    INNER JOIN {{ ref('10_projects_bh') }} pr ON wp.project_id = pr.id
+    INNER JOIN {{ ref('11_projects_bh') }} pr ON wp.project_id = pr.id
 ),
 with_owner_ids AS (
     SELECT

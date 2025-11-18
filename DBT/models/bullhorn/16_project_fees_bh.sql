@@ -17,7 +17,7 @@ WITH placements AS (
         pc.dateadded
     FROM {{ var('source_database') }}.bh_placement pc 
     INNER JOIN {{ ref('1_people_bh') }} p ON p.id = pc.userid 
-    INNER JOIN {{ ref('10_projects_bh') }} j ON j.id = pc.jobpostingid
+    INNER JOIN {{ ref('11_projects_bh') }} j ON j.id = pc.jobpostingid
 ),
 internal_fee_types AS (
     SELECT 
@@ -25,7 +25,7 @@ internal_fee_types AS (
         agency_id,
         atlas_id AS fee_type_id
     FROM 
-        {{ ref('14_fee_types_bh') }}
+        {{ ref('15_fee_types_bh') }}
 )
 SELECT
     TRIM(pl.fee::text) || '_paid_' || pl.placementid::text AS id,

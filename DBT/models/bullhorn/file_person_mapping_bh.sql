@@ -19,7 +19,9 @@ SELECT
         WHEN w."type" ILIKE '%resume%' OR w."type" ILIKE '%cv%' THEN 'resume'
         ELSE 'other'
     END AS type,
-    REPLACE('people/' || f.directory || f.userworkfileid::VARCHAR || f.fileextension, '\\', '/') AS file_name
+    REPLACE('people/' || f.directory || f.userworkfileid::VARCHAR || f.fileextension, '\\', '/') AS file_name,
+    TO_CHAR(f.dateadded::timestamp(0), 'YYYY-MM-DD"T"HH24:MI:SS') AS created_at
 FROM {{ var('source_database') }}.bh_userworkfile f
 INNER JOIN {{ var('source_database') }}.bh_userwork w ON w.userworkid = f.userworkid 
 INNER JOIN internal_persons ip ON ip.person_id = w.userid
+WHERE f.fileextension IN ('.pdf', '.docx', '.doc', '.txt')

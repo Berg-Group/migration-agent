@@ -9,7 +9,7 @@ WITH internal_meetings AS (
         m.id AS meetings_id,
         m.atlas_id AS atlas_meetings_id,
         TRIM(m.action) AS action_value
-    FROM {{ ref('13_meetings_bh') }} m
+    FROM {{ ref('14_meetings_bh') }} m
     WHERE m.action IS NOT NULL
       AND TRIM(m.action) != ''
 ),  
