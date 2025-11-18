@@ -1,6 +1,7 @@
 // ─────────── src/tests/tableTests.ts ───────────
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import { minimatch } from 'minimatch';
 import { log } from '../logger.js';
@@ -59,7 +60,9 @@ let RULES: any = {
 
 try {
   // Load rules.yml file
-  const rulesPath = path.resolve(path.dirname(new URL(import.meta.url).pathname), 'rules.yml');
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const rulesPath = path.resolve(__dirname, 'rules.yml');
   log.info(`Loading rules from ${rulesPath}`);
   const yamlContent = fs.readFileSync(rulesPath, 'utf8');
   const loadedRules = yaml.load(yamlContent) as any;
@@ -86,7 +89,9 @@ try {
     process.exit(1);
   }
 } catch (error: any) {
-  const rulesPath = path.resolve(path.dirname(new URL(import.meta.url).pathname), 'rules.yml');
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const rulesPath = path.resolve(__dirname, 'rules.yml');
   const errorMsg = `There is an error in ${rulesPath}, we cannot start the QA. ${error.message}`;
   log.error(errorMsg);
   console.error(`\n❌ ${errorMsg}\n`);
