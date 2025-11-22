@@ -5,7 +5,8 @@ import { settings, overrideTablePrefixes } from './config.js';
 
 (async () => {
   // Parse command-line arguments (skip first two: node and script path)
-  const cliArgs = process.argv.slice(2);
+  // Filter out the "--" separator that npm adds
+  const cliArgs = process.argv.slice(2).filter(arg => arg !== '--');
   
   // If arguments are provided, use them as table prefixes
   if (cliArgs.length > 0) {

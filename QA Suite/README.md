@@ -4,15 +4,18 @@ This migration test suite allows you to quickly validate data directly from RedS
 
 ## Setup
 
-1. Create a `.env` file with the following variables:
+1. Set the `target_schema` in `migration_config.yml` in the **parent directory** (Migration agent folder):
+   ```yaml
+   target_schema: "your_schema_name"
+   ```
+
+2. Create a `.env` file in the **parent directory** (Migration agent folder) with database credentials:
    ```
    REDSHIFT_USER=your_username
    REDSHIFT_PASSWORD=your_password
    REDSHIFT_HOST=your_host
    REDSHIFT_PORT=5439
    REDSHIFT_DB=your_database
-   TARGET_SCHEMA=your_schema
-   TABLE_PREFIXES=
    ```
 
 2. Install dependencies:
@@ -34,10 +37,8 @@ npm run qa:quiet
 
 ### Filtering by Table Prefixes
 
-You can filter which tables to test in two ways:
+Pass table prefixes directly as command-line arguments:
 
-**Option 1: Command-Line Arguments (Recommended)**
-Pass table prefixes directly as arguments:
 ```bash
 # Test all tables starting with "people"
 npm run qa people
@@ -47,15 +48,10 @@ npm run qa people companies projects
 
 # Test with quiet mode
 npm run qa:quiet people
-```
 
-**Option 2: Environment Variable**
-If you leave `.env` `TABLE_PREFIXES` blank, the script will validate all tables in the schema. If you'd like to focus on specific tables, you can provide a comma-separated list:
+# Test all tables (no prefix filter)
+npm run qa
 ```
-TABLE_PREFIXES=table1,table2,table3
-```
-
-Note: Command-line arguments take precedence over the `TABLE_PREFIXES` environment variable.
 
 ## Video Tutorial
 

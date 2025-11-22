@@ -2,23 +2,23 @@
 # Fill in all variables below before running the migration
 
 # Client Information
-client_name: ""  # e.g., "acme_corp" - This will be the folder name in DBT/models/clients/
-source_crm: ""  # e.g., "bullhorn", "recruitcrm", "vincere", etc. - Must match a folder in DBT/models/
+client_name: "lechley associates"  # e.g., "acme_corp" - This will be the folder name in DBT/models/clients/
+source_crm: "recruitcrm"  # e.g., "bullhorn", "recruitcrm", "vincere", etc. - Must match a folder in DBT/models/
+source_schema: "lechley_public"  # the name of the schema on Redshift
+target_schema: "yogi_lechley_migrated"  # e.g., "atlas_migrated"
 
 # Linear Ticket Information
 linear_ticket:
-  ticket_id: ""
-  ticket_url: ""
-  description: ""
-  special_requirements: ""
+  ticket_url: ""  # Add the Linear ticket URL here, e.g. "https://linear.app/your-team/ticket-123"
+
 
 # Tables to Transform
 # List all tables that need to be migrated/transformed
 tables_to_transform:
-  - ""  # e.g., "users"
-  - ""  # e.g., "people"
-  - ""  # e.g., "companies"
-  - ""  # e.g., "projects"
+  - "users"  # e.g., "users"
+  - "people"  # e.g., "people"
+  - "companies"  # e.g., "companies"
+  - "projects"  # e.g., "projects"
   # Add more tables as needed
 
 # Master Configuration
@@ -30,15 +30,6 @@ dbt_config:
   project_file: "DBT/dbt_project.yml"  # Path to the dbt_project.yml to use
   profiles_file: "DBT/profiles.yml"  # Path to the profiles.yml file
   
-# Database Connection
-# Note: These may override or supplement what's in profiles.yml
-database:
-  host: ""
-  port: ""
-  database: ""
-  schema: ""
-  username: ""
-  password: ""
 
 # QA Configuration
 qa_config:
@@ -48,8 +39,7 @@ qa_config:
 # Migration Settings
 migration_settings:
   migrate_all_users: true  # Set to false if only migrating specific users
-  exclude_tables: []  # List any tables to exclude from migration
-  custom_mappings: {}  # Any custom field mappings needed
+
   
 # File Paths (usually don't need to change these)
 paths:

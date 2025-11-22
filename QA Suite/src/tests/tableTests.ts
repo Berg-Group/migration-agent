@@ -108,19 +108,8 @@ function prefixClause(): string {
   // Include clause - only include tables with specified prefixes, if any
   if (settings.TABLE_PREFIXES.length) {
     baseClause = settings.TABLE_PREFIXES
-      .map((p) => `table_name ~ '^${p.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}'`)
+      .map((p: string) => `table_name ~ '^${p.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}'`)
       .join(' OR ');
-  }
-  
-  // Exclude clause - exclude tables with specified prefixes
-  if (settings.EXCLUDED_TABLE_PREFIXES.length) {
-    // Build an exclusion clause for each prefix to exclude
-    const excludeClause = settings.EXCLUDED_TABLE_PREFIXES
-      .map((p) => `table_name !~ '^${p.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}'`)
-      .join(' AND ');
-    
-    // Combine base clause with exclusion
-    return `(${baseClause}) AND (${excludeClause})`;
   }
   
   return baseClause;

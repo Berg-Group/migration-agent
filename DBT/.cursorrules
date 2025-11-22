@@ -1,0 +1,220 @@
+# DBT Transformations - Running DBT Commands
+
+## ⚠️ IMPORTANT: Environment Configuration
+
+DBT reads environment variables from the **parent directory** (Migration agent folder), NOT from this DBT directory.
+
+### Required Files in Parent Directory
+
+1. **`.env`** - Database credentials (DO NOT create .env in this DBT folder)
+   ```
+   REDSHIFT_USER=your_username
+   REDSHIFT_PASSWORD=your_password
+   REDSHIFT_HOST=your_host
+   REDSHIFT_PORT=5439
+   REDSHIFT_DB=your_database
+   ```
+
+2. **`migration_config.yml`** - Migration configuration including `target_schema`
+
+## How to Run DBT
+
+### From the Migration Agent Directory (Parent)
+
+Use the wrapper script that loads environment variables:
+
+```bash
+# Run DBT models
+./run-dbt.sh run
+
+# Run specific models
+./run-dbt.sh run --select people_*
+
+# Test models
+./run-dbt.sh test
+
+# Debug connection
+./run-dbt.sh debug
+
+# Compile models without running
+./run-dbt.sh compile
+
+# Run and test in one command
+./run-dbt.sh build
+```
+
+### The Wrapper Script (`run-dbt.sh`)
+
+The `run-dbt.sh` script automatically:
+1. Loads environment variables from parent `.env` file
+2. Extracts `target_schema` from `migration_config.yml`
+3. Changes to the DBT directory
+4. Runs your DBT command
+5. Returns to the parent directory
+
+## DBT Configuration Files
+
+### `profiles.yml` 
+Defines the database connection using environment variables:
+- `REDSHIFT_HOST`
+- `REDSHIFT_PORT` (defaults to 5439)
+- `REDSHIFT_DB` (defaults to 'dev')
+- `REDSHIFT_USER`
+- `REDSHIFT_PASSWORD`
+- `TARGET_SCHEMA` (loaded from migration_config.yml)
+
+### `dbt_project.yml`
+Contains project-specific variables:
+- `source_database` - Source schema name
+- `clientName` - Client name/slug
+- `agency_id` - Agency ID
+- `master_id` - Fallback user ID
+- `domain` - Domain name
+
+## Common DBT Commands
+
+```bash
+# Run all models
+./run-dbt.sh run
+
+# Run models for specific client
+./run-dbt.sh run --select clients.client_name.*
+
+# Run models with specific prefix
+./run-dbt.sh run --select people_*
+./run-dbt.sh run --select companies_*
+
+# Run a single model
+./run-dbt.sh run --select model_name
+
+# Test all models
+./run-dbt.sh test
+
+# Test specific model
+./run-dbt.sh test --select people_*
+
+# Debug connection issues
+./run-dbt.sh debug
+
+# Show documentation
+./run-dbt.sh docs generate
+./run-dbt.sh docs serve
+
+# Clean compiled files
+./run-dbt.sh clean
+
+# Compile without running
+./run-dbt.sh compile
+```
+
+## Workflow for Running Transformations
+
+1. **Configure** `migration_config.yml` in parent directory with:
+   - `target_schema` - Where transformed data will be written
+   - Client-specific variables
+
+2. **Set up** `dbt_project.yml` with project variables:
+   - `source_database`
+   - `clientName`
+   - `master_id`
+   - etc.
+
+3. **Run DBT transformations**:
+   ```bash
+   cd "/path/to/Migration agent"
+   ./run-dbt.sh run
+   ```
+
+4. **Run QA tests** after successful transformation:
+   ```bash
+   cd "QA Suite" && npm run qa
+   ```
+
+5. **Fix any issues** in DBT models and re-run
+
+## Important Notes
+
+### DO NOT:
+- ❌ Create a `.env` file in this DBT directory
+- ❌ Run `dbt` commands directly from this directory (they won't have env vars)
+- ❌ Modify `profiles.yml` to hardcode credentials
+
+### DO:
+- ✅ Use `./run-dbt.sh` from the parent directory
+- ✅ Keep credentials in parent `.env` file
+- ✅ Set `target_schema` in parent `migration_config.yml`
+- ✅ Update `dbt_project.yml` for each migration
+
+## Model Organization
+
+```
+models/
+├── clients/          # Client-specific transformations
+│   └── {clientName}/ # One folder per client
+├── bullhorn/         # Default Bullhorn transformations
+├── recruitcrm/       # Default RecruitCRM transformations
+├── vincere/          # Default Vincere transformations
+└── ...               # Other CRM templates
+```
+
+### Creating Client Models
+
+1. Copy default CRM models from `models/{sourceCRM}/` to `models/clients/{clientName}/`
+2. Customize the transformations as needed for the client
+3. Only edit files in `models/clients/{clientName}/` folder
+
+## Checking DBT Connection
+
+Before running transformations, verify connection:
+
+```bash
+./run-dbt.sh debug
+```
+
+This will show:
+- Configuration details
+- Database connection status
+- Any environment variable issues
+
+## Troubleshooting
+
+### "Could not find profile named 'default'"
+- Make sure you're running from parent directory using `./run-dbt.sh`
+- Check that `profiles.yml` exists in this DBT directory
+
+### "Database connection failed"
+- Verify credentials in parent `.env` file
+- Run `./run-dbt.sh debug` to see connection details
+- Check network access to Redshift
+
+### "target_schema not set"
+- Verify `migration_config.yml` in parent directory has `target_schema: "schema_name"`
+
+### Environment variables not loading
+- Use `./run-dbt.sh` wrapper script (don't run `dbt` directly)
+- Check that `.env` file exists in parent directory
+- Verify `.env` file has proper format (no spaces around `=`)
+
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Run all transformations | `./run-dbt.sh run` |
+| Run specific table prefix | `./run-dbt.sh run --select people_*` |
+| Test transformations | `./run-dbt.sh test` |
+| Debug connection | `./run-dbt.sh debug` |
+| Clean compiled files | `./run-dbt.sh clean` |
+| Full build (run + test) | `./run-dbt.sh build` |
+
+## After Running DBT
+
+Always run the QA suite to validate the transformations:
+
+```bash
+cd "QA Suite" && npm run qa
+# Or test specific tables:
+cd "QA Suite" && npm run qa people companies
+```
+
+Fix any QA failures by editing the DBT models and re-running the transformations.
+

@@ -47,18 +47,22 @@ cd "QA Suite" && npm run qa:quiet people
 4. **Validation**: Runs validators against each table/column according to the rules
 5. **Reporting**: Outputs results to console and log file in `logs/` directory
 
-### Environment Variables
+### Configuration
 
-The QA Suite requires a `.env` file with:
+The QA Suite reads configuration from two sources in the **parent directory** (Migration agent folder):
+
+**From `migration_config.yml`:**
+- `target_schema` - The schema to validate (REQUIRED)
+
+**From `.env` file:**
 - `REDSHIFT_USER` - Database username
 - `REDSHIFT_PASSWORD` - Database password
 - `REDSHIFT_HOST` - Database host
 - `REDSHIFT_PORT` - Database port (default: 5439)
 - `REDSHIFT_DB` - Database name
-- `TARGET_SCHEMA` - Schema to validate
-- `TABLE_PREFIXES` - (Optional) Comma-separated list of table prefixes
 
-**Note**: Command-line arguments override `TABLE_PREFIXES` from .env
+**Table Filtering:**
+Table prefixes are specified via command-line arguments only (not in .env)
 
 ### What You CAN Do
 
