@@ -1,5 +1,32 @@
 # DBT Transformations - Running DBT Commands
 
+## 🚀 QUICK START - How to Run DBT
+
+**The simplest and recommended way to run DBT:**
+
+```bash
+cd "/path/to/Migration agent"
+bash run-dbt.sh run --profiles-dir . --project-dir .
+```
+
+This wrapper script automatically handles:
+- ✅ Loading .env credentials
+- ✅ Extracting TARGET_SCHEMA from migration_config.yml  
+- ✅ Running DBT from the correct directory
+- ✅ Using the virtual environment's dbt executable
+
+## ⚠️ IMPORTANT: Always Check migration_config.yml First!
+
+Before running any DBT commands, **ALWAYS read** `../migration_config.yml` (in the parent directory).
+
+This file contains ALL critical migration settings:
+- `target_schema` → becomes TARGET_SCHEMA environment variable
+- `source_schema` → should match `source_database` in dbt_project.yml
+- `client_name` → should match `clientName` in dbt_project.yml
+- `source_crm` → determines which template folder to use
+- `tables_to_transform` → which tables to migrate
+- `master_id` → fallback user ID for transformations
+
 ## ⚠️ IMPORTANT: Environment Configuration
 
 DBT reads environment variables from the **parent directory** (Migration agent folder), NOT from this DBT directory.
@@ -17,9 +44,47 @@ DBT reads environment variables from the **parent directory** (Migration agent f
 
 2. **`migration_config.yml`** - Migration configuration including `target_schema`
 
+## Virtual Environment Setup
+
+DBT is installed in a Python virtual environment located at `DBT/redshift_env/`.
+
+### First Time Setup
+
+```bash
+cd "/path/to/Migration agent"
+bash setup.sh  # This creates the venv and installs all dependencies
+```
+
+### If DBT Command Not Found
+
+If you get `bash: dbt: command not found`, use one of these approaches:
+
+**Option 1: Use the run-dbt.sh wrapper (RECOMMENDED)**
+```bash
+cd "/path/to/Migration agent"
+bash run-dbt.sh run --profiles-dir . --project-dir .
+```
+
+**Option 2: Use the full path to dbt executable**
+```bash
+cd "/path/to/Migration agent/DBT"
+set -a && source ../.env && set +a
+export TARGET_SCHEMA=$(grep '^target_schema:' ../migration_config.yml | sed 's/target_schema: *"\?\([^"]*\)"\?/\1/' | tr -d '"')
+./redshift_env/bin/dbt run --profiles-dir . --project-dir .
+```
+
+**Option 3: Activate venv (may not work if PATH issues)**
+```bash
+cd "/path/to/Migration agent/DBT"
+source redshift_env/bin/activate
+set -a && source ../.env && set +a
+export TARGET_SCHEMA=$(grep '^target_schema:' ../migration_config.yml | sed 's/target_schema: *"\?\([^"]*\)"\?/\1/' | tr -d '"')
+dbt run --profiles-dir . --project-dir .
+```
+
 ## How to Run DBT
 
-### From the Migration Agent Directory (Parent)
+### From the Migration Agent Directory (Parent) - PREFERRED METHOD
 
 Use the wrapper script that loads environment variables:
 
@@ -56,12 +121,14 @@ The `run-dbt.sh` script automatically:
 
 ### `profiles.yml` 
 Defines the database connection using environment variables:
-- `REDSHIFT_HOST`
-- `REDSHIFT_PORT` (defaults to 5439)
-- `REDSHIFT_DB` (defaults to 'dev')
-- `REDSHIFT_USER`
-- `REDSHIFT_PASSWORD`
-- `TARGET_SCHEMA` (loaded from migration_config.yml)
+- `REDSHIFT_HOST` - from parent `.env` file
+- `REDSHIFT_PORT` - from parent `.env` file (defaults to 5439)
+- `REDSHIFT_DB` - from parent `.env` file (defaults to 'dev')
+- `REDSHIFT_USER` - from parent `.env` file
+- `REDSHIFT_PASSWORD` - from parent `.env` file
+- `TARGET_SCHEMA` - **IMPORTANT**: This comes from `target_schema` in parent `migration_config.yml`, NOT from .env
+  * The `run-dbt.sh` script automatically extracts this value
+  * If running manually, you must export it: `export TARGET_SCHEMA="lechley_migrated_cursor"`
 
 ### `dbt_project.yml`
 Contains project-specific variables:
@@ -194,6 +261,14 @@ This will show:
 - Use `./run-dbt.sh` wrapper script (don't run `dbt` directly)
 - Check that `.env` file exists in parent directory
 - Verify `.env` file has proper format (no spaces around `=`)
+- If running manually, load env vars: `set -a && source ../.env && set +a`
+- Don't forget TARGET_SCHEMA: extract it from migration_config.yml
+
+### "dbt: command not found"
+- DBT is installed in virtual environment at `DBT/redshift_env/bin/dbt`
+- ALWAYS use the wrapper script: `bash run-dbt.sh run` from parent directory
+- OR use full path: `./redshift_env/bin/dbt` from DBT directory
+- Don't rely on activating the venv - PATH may not update correctly
 
 ## Quick Reference
 
