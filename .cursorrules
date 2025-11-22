@@ -1,0 +1,20 @@
+# Your goal
+- Your goal is to run DBT transformations which creates a destination schema that passes the test suite
+- Gather the key variables from the Linear ticket, as well as the tables that will need to be transformed
+- Find the default model for the $sourceCRM in DBT/models and then copy the default to /clients/$clientName
+- Create, edit and delete files ONLY in the DBT/models/clients/$clientName folder (create it when its new)
+- Use the DBT/CRM knowledge/$sourceCRM folder to help you understand the data and the transformations needed
+- Run the QA test suite on the files once the script has been run using the terminal line,  cd "QA Suite" && npm run qa
+- Use the output of the QA suite to make adjustments to the DBT models and run again
+- Finish only when there are no errors in the QA suite
+
+# Other important items
+- You must check you have the right dbt_project.yml file for the project before running any DBT script
+- You can only created/edit files in the DBT/models/clients/$clientName folder
+- If in doubt, stop and ask a question to the ticket provider
+
+#Transformation rules
+- Sometimes we aren't migrating all the users. If the required user doesn't exist in the user table, then use ¢master_id from the dbt_project.yml
+
+
+

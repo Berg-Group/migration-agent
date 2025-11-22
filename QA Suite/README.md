@@ -32,10 +32,30 @@ For less verbose output:
 npm run qa:quiet
 ```
 
+### Filtering by Table Prefixes
+
+You can filter which tables to test in two ways:
+
+**Option 1: Command-Line Arguments (Recommended)**
+Pass table prefixes directly as arguments:
+```bash
+# Test all tables starting with "people"
+npm run qa people
+
+# Test multiple prefixes
+npm run qa people companies projects
+
+# Test with quiet mode
+npm run qa:quiet people
+```
+
+**Option 2: Environment Variable**
 If you leave `.env` `TABLE_PREFIXES` blank, the script will validate all tables in the schema. If you'd like to focus on specific tables, you can provide a comma-separated list:
 ```
 TABLE_PREFIXES=table1,table2,table3
 ```
+
+Note: Command-line arguments take precedence over the `TABLE_PREFIXES` environment variable.
 
 ## Video Tutorial
 

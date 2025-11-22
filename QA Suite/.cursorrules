@@ -1,0 +1,106 @@
+# QA Suite - DO NOT MODIFY
+
+## ⚠️ CRITICAL: NO CODE CHANGES ALLOWED IN THIS DIRECTORY
+
+**You MUST NOT create, edit, or delete ANY code files in the QA Suite directory.**
+
+This is a testing framework that validates DBT transformations. It should remain unchanged to ensure consistent and reliable testing across all migrations.
+
+## How the QA Suite Works
+
+### Purpose
+The QA Suite validates that DBT transformations create a destination schema that passes all validation rules defined in `src/tests/rules.yml`.
+
+### Running the QA Suite
+
+From the **Migration agent** directory (parent folder), run:
+
+```bash
+cd "QA Suite" && npm run qa
+```
+
+#### Filter by Table Prefixes
+You can test specific tables by passing table prefixes as arguments:
+
+```bash
+# Test all tables starting with "people"
+cd "QA Suite" && npm run qa people
+
+# Test multiple prefixes
+cd "QA Suite" && npm run qa people companies projects users
+
+# Test everything (no filter)
+cd "QA Suite" && npm run qa
+```
+
+#### Quiet Mode
+For less verbose output:
+```bash
+cd "QA Suite" && npm run qa:quiet people
+```
+
+### How It Works
+
+1. **Configuration**: Reads database connection and schema from `.env` file in QA Suite directory
+2. **Table Discovery**: Finds all tables in the `TARGET_SCHEMA` that match the specified prefixes
+3. **Rule Loading**: Reads validation rules from `src/tests/rules.yml`
+4. **Validation**: Runs validators against each table/column according to the rules
+5. **Reporting**: Outputs results to console and log file in `logs/` directory
+
+### Environment Variables
+
+The QA Suite requires a `.env` file with:
+- `REDSHIFT_USER` - Database username
+- `REDSHIFT_PASSWORD` - Database password
+- `REDSHIFT_HOST` - Database host
+- `REDSHIFT_PORT` - Database port (default: 5439)
+- `REDSHIFT_DB` - Database name
+- `TARGET_SCHEMA` - Schema to validate
+- `TABLE_PREFIXES` - (Optional) Comma-separated list of table prefixes
+
+**Note**: Command-line arguments override `TABLE_PREFIXES` from .env
+
+### What You CAN Do
+
+✅ **View** rules.yml to understand validation requirements
+✅ **Read** log files in the `logs/` directory to debug issues
+✅ **Run** the QA suite with different table prefixes
+✅ **Check** the README.md for documentation
+
+### What You CANNOT Do
+
+❌ **Modify** any TypeScript source files
+❌ **Edit** validation logic or validators
+❌ **Change** package.json scripts
+❌ **Delete** or rename files
+❌ **Update** dependencies
+
+### Fixing QA Failures
+
+When the QA Suite reports failures:
+1. Review the error messages and log files
+2. **Fix the DBT models** in `DBT/models/clients/$clientName/` directory
+3. Re-run the DBT transformation
+4. Run the QA Suite again
+5. Repeat until all tests pass
+
+**Remember**: Fix the DBT models, NOT the QA Suite!
+
+### Migration Workflow
+
+1. Create DBT models in `DBT/models/clients/$clientName/`
+2. Run DBT transformations to create destination schema
+3. Run QA Suite: `cd "QA Suite" && npm run qa`
+4. If failures occur, edit DBT models and re-run transformations
+5. Re-run QA Suite
+6. Finish when QA Suite shows zero errors
+
+## Questions?
+
+If you think the QA Suite needs modifications or the validation rules are incorrect:
+- **STOP** and ask the user/ticket provider
+- Do NOT make changes on your own
+- Document the issue clearly
+
+The QA Suite is a shared testing framework used across all migrations and must remain consistent.
+

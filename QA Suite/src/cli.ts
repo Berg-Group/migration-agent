@@ -1,9 +1,17 @@
 // src/cli.ts - Comprehensive validation using tableTests
 import { log } from './logger.js';
 import { runColumnTests } from './tests/tableTests.js';
-import { settings } from './config.js';
+import { settings, overrideTablePrefixes } from './config.js';
 
 (async () => {
+  // Parse command-line arguments (skip first two: node and script path)
+  const cliArgs = process.argv.slice(2);
+  
+  // If arguments are provided, use them as table prefixes
+  if (cliArgs.length > 0) {
+    overrideTablePrefixes(cliArgs);
+  }
+  
   // Always display start message, even in quiet mode
   console.log("\n=================================================");
   console.log(` 🚀 Starting QA validation for ${settings.TARGET_SCHEMA}`);

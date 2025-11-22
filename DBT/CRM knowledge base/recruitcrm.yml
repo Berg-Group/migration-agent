@@ -1,0 +1,2 @@
+#DB Quirks
+- They have a separate candidate and contacts table and you might find the same person in both tables, where they are linked by email

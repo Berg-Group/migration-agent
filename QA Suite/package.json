@@ -5,8 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "qa": "node --loader ts-node/esm src/cli.ts",
-    "qa:quiet": "QUIET_MODE=true node --loader ts-node/esm src/cli.ts",
+    "qa": "node --loader ts-node/esm src/cli.ts --",
+    "qa:quiet": "QUIET_MODE=true node --loader ts-node/esm src/cli.ts --",
     "start": "node --loader ts-node/esm src/index.ts",
     "build": "tsc",
     "test": "node --test"

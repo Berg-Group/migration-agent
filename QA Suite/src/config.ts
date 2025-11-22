@@ -36,4 +36,22 @@ const SettingsSchema = z.object({
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;
-export const settings = SettingsSchema.parse(process.env);
+
+// Parse base settings from environment
+let baseSettings = SettingsSchema.parse(process.env);
+
+// Export mutable settings object
+export let settings = { ...baseSettings };
+
+/**
+ * Override table prefixes from command-line arguments
+ * This allows running: npm run qa people companies
+ */
+export function overrideTablePrefixes(prefixes: string[]) {
+  if (prefixes.length > 0) {
+    settings = {
+      ...settings,
+      TABLE_PREFIXES: prefixes
+    };
+  }
+}

@@ -1,0 +1,65 @@
+# Migration Configuration File
+# Fill in all variables below before running the migration
+
+# Client Information
+client_name: ""  # e.g., "acme_corp" - This will be the folder name in DBT/models/clients/
+source_crm: ""  # e.g., "bullhorn", "recruitcrm", "vincere", etc. - Must match a folder in DBT/models/
+
+# Linear Ticket Information
+linear_ticket:
+  ticket_id: ""
+  ticket_url: ""
+  description: ""
+  special_requirements: ""
+
+# Tables to Transform
+# List all tables that need to be migrated/transformed
+tables_to_transform:
+  - ""  # e.g., "users"
+  - ""  # e.g., "people"
+  - ""  # e.g., "companies"
+  - ""  # e.g., "projects"
+  # Add more tables as needed
+
+# Master Configuration
+# Used when not all users are being migrated
+master_id: ""  # Master user ID to use when required user doesn't exist in user table
+
+# DBT Configuration
+dbt_config:
+  project_file: "DBT/dbt_project.yml"  # Path to the dbt_project.yml to use
+  profiles_file: "DBT/profiles.yml"  # Path to the profiles.yml file
+  
+# Database Connection
+# Note: These may override or supplement what's in profiles.yml
+database:
+  host: ""
+  port: ""
+  database: ""
+  schema: ""
+  username: ""
+  password: ""
+
+# QA Configuration
+qa_config:
+  run_after_transformation: true  # Automatically run QA after DBT transformations
+  max_iterations: 10  # Maximum number of QA fix iterations before manual review
+  
+# Migration Settings
+migration_settings:
+  migrate_all_users: true  # Set to false if only migrating specific users
+  exclude_tables: []  # List any tables to exclude from migration
+  custom_mappings: {}  # Any custom field mappings needed
+  
+# File Paths (usually don't need to change these)
+paths:
+  dbt_models_default: "DBT/models/"  # Where default CRM models are
+  dbt_models_clients: "DBT/models/clients/"  # Where client-specific models go
+  crm_knowledge_base: "DBT/CRM knowledge base/"  # CRM knowledge base location
+  qa_suite: "QA Suite/"  # QA Suite location
+
+# Additional Notes
+notes: |
+  Add any additional notes or special instructions here.
+  This section is for documentation purposes only.
+
