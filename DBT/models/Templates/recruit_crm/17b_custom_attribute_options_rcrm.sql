@@ -9,7 +9,7 @@ WITH internal_attributes AS (
         atlas_id,
         alias
     FROM
-        {{ ref('custom_attributes_rcrm') }}
+        {{ ref('17a_custom_attributes_rcrm') }}
 )
 SELECT
     hd.hotlist_id AS id,

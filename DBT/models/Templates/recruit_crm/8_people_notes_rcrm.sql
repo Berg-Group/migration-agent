@@ -10,7 +10,7 @@ WITH internal_persons AS (
     SELECT DISTINCT
         COALESCE(contact_slug, candidate_slug) AS person_id,
         atlas_id AS atlas_person_id
-    FROM {{ ref('people_rcrm') }}
+    FROM {{ ref('3_people_rcrm') }}
     WHERE atlas_id IS NOT NULL
 ),
 

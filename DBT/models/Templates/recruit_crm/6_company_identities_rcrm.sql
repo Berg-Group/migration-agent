@@ -7,7 +7,7 @@ WITH internal_companies AS (
         id,
         atlas_id AS atlas_company_id 
     FROM 
-        {{ ref('companies_rcrm') }}
+        {{ ref('5_companies_rcrm') }}
 ),
 
 website_identities AS (
