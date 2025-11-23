@@ -5,7 +5,7 @@
 client_name: "lechley associates"  # e.g., "acme_corp" - This will be the folder name in DBT/models/clients/
 source_crm: "recruitcrm"  # e.g., "bullhorn", "recruitcrm", "vincere", etc. - Must match a folder in DBT/models/
 source_schema: "lechley_public"  # the name of the schema on Redshift
-target_schema: "yogi_lechley_migrated"  # e.g., "atlas_migrated"
+target_schema: "lechley_migrated_cursor"  # e.g., "atlas_migrated"
 
 # Linear Ticket Information
 linear_ticket:

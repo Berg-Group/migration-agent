@@ -7,7 +7,7 @@ WITH internal_persons AS (
         id as person_id,
         atlas_id as atlas_person_id,
         contact_slug
-    FROM {{ ref('people_rcrm') }}
+    FROM {{ ref('3_people_rcrm') }}
 ),
 
 internal_company_contacts AS (
@@ -16,14 +16,14 @@ internal_company_contacts AS (
         atlas_id as atlas_company_contact_id,
         person_id,
         atlas_person_id
-    FROM {{ ref('company_contacts_rcrm') }}
+    FROM {{ ref('7_company_contacts_rcrm') }}
 ),
 
 internal_projects AS (
     SELECT 
         id as project_id,
         atlas_id as atlas_project_id
-    FROM {{ ref('projects_rcrm') }}
+    FROM {{ ref('12_projects_rcrm') }}
 )
 
 SELECT 

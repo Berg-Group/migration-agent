@@ -2,7 +2,37 @@
 
 ## 🚀 QUICK START - How to Run DBT
 
-**The simplest and recommended way to run DBT:**
+**RECOMMENDED: Use --select to run only client models (avoids Template duplicates)**
+
+```bash
+# From the DBT directory:
+cd "/path/to/Migration agent/DBT"
+
+# Load environment variables
+set -a && source ../.env && set +a
+
+# Set TARGET_SCHEMA from migration_config.yml
+export TARGET_SCHEMA="<target_schema_value>"
+
+# Run ONLY the client models (replace <clientName> with actual client)
+./redshift_env/bin/dbt run --select clients.<clientName>.* --profiles-dir . --project-dir .
+```
+
+**Example for lechley_associates:**
+```bash
+cd "/path/to/Migration agent/DBT"
+set -a && source ../.env && set +a
+export TARGET_SCHEMA="lechley_migrated_cursor"
+./redshift_env/bin/dbt run --select clients.lechley_associates.* --profiles-dir . --project-dir .
+```
+
+**Why use --select clients.<clientName>.*?**
+- ✅ Avoids duplicate model errors from Templates folder
+- ✅ Only compiles and runs the specific client's models  
+- ✅ Faster compilation time
+- ✅ Cleaner output showing only relevant models
+
+**Alternative: Use the wrapper script (may encounter Template conflicts)**
 
 ```bash
 cd "/path/to/Migration agent"
@@ -188,8 +218,18 @@ Contains project-specific variables:
 
 3. **Run DBT transformations**:
    ```bash
-   cd "/path/to/Migration agent"
-   ./run-dbt.sh run
+   cd "/path/to/Migration agent/DBT"
+   set -a && source ../.env && set +a
+   export TARGET_SCHEMA="<target_schema_from_config>"
+   ./redshift_env/bin/dbt run --select clients.<clientName>.* --profiles-dir . --project-dir .
+   ```
+   
+   Example:
+   ```bash
+   cd "/path/to/Migration agent/DBT"
+   set -a && source ../.env && set +a
+   export TARGET_SCHEMA="lechley_migrated_cursor"
+   ./redshift_env/bin/dbt run --select clients.lechley_associates.* --profiles-dir . --project-dir .
    ```
 
 4. **Run QA tests** after successful transformation:
@@ -270,16 +310,34 @@ This will show:
 - OR use full path: `./redshift_env/bin/dbt` from DBT directory
 - Don't rely on activating the venv - PATH may not update correctly
 
+### "dbt found two models with the same name" (duplicate models)
+- This happens when Templates folder has models with same names as client models
+- **SOLUTION**: Use `--select clients.<clientName>.*` to only compile client models
+- Example: `./redshift_env/bin/dbt run --select clients.lechley_associates.* --profiles-dir . --project-dir .`
+- This tells DBT to ignore all Template models and only run the specific client's models
+- Alternatively, disable Templates in dbt_project.yml under models config
+
 ## Quick Reference
+
+**From DBT directory** (after loading env vars with `set -a && source ../.env && set +a` and `export TARGET_SCHEMA="..."`):
+
+| Task | Command |
+|------|---------|
+| Run client models | `./redshift_env/bin/dbt run --select clients.<clientName>.* --profiles-dir . --project-dir .` |
+| Run specific table prefix | `./redshift_env/bin/dbt run --select <clientName>_people_* --profiles-dir . --project-dir .` |
+| Test client models | `./redshift_env/bin/dbt test --select clients.<clientName>.* --profiles-dir . --project-dir .` |
+| Debug connection | `./redshift_env/bin/dbt debug --profiles-dir . --project-dir .` |
+| Clean compiled files | `./redshift_env/bin/dbt clean --profiles-dir . --project-dir .` |
+| Compile without running | `./redshift_env/bin/dbt compile --select clients.<clientName>.* --profiles-dir . --project-dir .` |
+
+**From parent directory using wrapper**:
 
 | Task | Command |
 |------|---------|
 | Run all transformations | `./run-dbt.sh run` |
-| Run specific table prefix | `./run-dbt.sh run --select people_*` |
 | Test transformations | `./run-dbt.sh test` |
 | Debug connection | `./run-dbt.sh debug` |
 | Clean compiled files | `./run-dbt.sh clean` |
-| Full build (run + test) | `./run-dbt.sh build` |
 
 ## After Running DBT
 

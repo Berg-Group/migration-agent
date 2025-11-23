@@ -1,6 +1,7 @@
 # Your goal
 - Your goal is to run DBT transformations which creates a destination schema that passes the test suite
-- Gather the key variables from the Linear ticket, as well as the tables that will need to be transformed
+- **ALWAYS START by reading migration_config.yml** - this is the source of truth for ALL migration settings
+- Gather the key variables from migration_config.yml, which will tell you the scope of the migration and provide all information
 - Find the default model for the $sourceCRM in DBT/models and then copy the default to /clients/$clientName
 - Create, edit and delete files ONLY in the DBT/models/clients/$clientName folder (create it when its new)
 - Use the DBT/CRM knowledge/$sourceCRM folder to help you understand the data and the transformations needed
@@ -8,13 +9,120 @@
 - Use the output of the QA suite to make adjustments to the DBT models and run again
 - Finish only when there are no errors in the QA suite
 
+# migration_config.yml - SOURCE OF TRUTH
+
+**ALWAYS read this file first!** It contains all critical migration parameters:
+
+## Key Variables in migration_config.yml:
+- `client_name` - The client folder name (e.g., "lechley associates" → lechley_associates)
+- `source_crm` - Source CRM system (e.g., "recruitcrm", "bullhorn", "vincere")
+- `source_schema` - Source schema on Redshift (e.g., "lechley_public")
+- `target_schema` - Destination schema for transformed data (e.g., "lechley_migrated_cursor")
+  * **IMPORTANT**: This becomes the `TARGET_SCHEMA` environment variable needed by DBT
+- `tables_to_transform` - List of tables to migrate (e.g., users, people, companies, projects)
+- `master_id` - Fallback user ID when not all users are migrated
+- `migrate_all_users` - Boolean flag for user migration scope
+
+## How These Variables Are Used:
+
+1. **DBT Project Configuration** (`DBT/dbt_project.yml`):
+   - `source_database` → from `source_schema` 
+   - `clientName` → from `client_name` (with spaces → underscores)
+   - `master_id` → from `master_id`
+   - Target schema → from `target_schema`
+
+2. **DBT Profiles** (`DBT/profiles.yml`):
+   - `TARGET_SCHEMA` env var → extracted from `target_schema`
+
+3. **File Paths**:
+   - Client models folder: `DBT/models/clients/{clientName}/`
+   - Template source: `DBT/models/Templates/{source_crm}/`
+
+## Running DBT Transformations:
+
+### Sequential, per-table workflow (required)
+
+1. **Establish the run order** by sorting the client models alphabetically:  
+   ```
+   cd "/path/to/Migration agent/DBT/models/clients/<clientName>"
+   ls -1 *.sql | sort
+   ```
+2. For each `<model_file>` from that sorted list:
+   - Convert it to a model name by removing `.sql` (e.g., `companies_rcrm.sql` → `companies_rcrm`).
+   - Run only that model:
+     ```
+     cd "/path/to/Migration agent/DBT"
+     set -a && source ../.env && set +a
+     export TARGET_SCHEMA="<value_from_migration_config_target_schema>"
+     ./redshift_env/bin/dbt run \
+       --select clients.<clientName>.<model_name> \
+       --profiles-dir . --project-dir .
+     ```
+   - Immediately run the QA suite filtered to that table (use the table alias prefix, typically the part before `_rcrm`):
+     ```
+     cd "/path/to/Migration agent/QA Suite"
+     npm run qa <table_prefix>
+     ```
+     Example: after `companies_rcrm`, execute `npm run qa companies`.
+   - Fix any failures, rerun the same model, then rerun QA before proceeding to the next file.
+3. Once every model + QA pair has succeeded, run a full QA sweep (`npm run qa`) to confirm the entire schema.
+
+### Method 1: Using the wrapper script (Recommended for simple cases)
+
+```bash
+cd "/path/to/Migration agent"
+bash run-dbt.sh run --profiles-dir . --project-dir .
+```
+
+This automatically:
+- Loads .env credentials
+- Extracts target_schema from migration_config.yml as TARGET_SCHEMA
+- Runs DBT with all required environment variables
+
+### Method 2: Direct execution with --select (Recommended for avoiding Template conflicts)
+
+**PREFERRED METHOD** to avoid duplicate model errors from Templates folder:
+
+```bash
+cd "/path/to/Migration agent/DBT"
+set -a && source ../.env && set +a
+export TARGET_SCHEMA="<value_from_migration_config_target_schema>"
+./redshift_env/bin/dbt run --select clients.<clientName>.* --profiles-dir . --project-dir .
+```
+
+Example for lechley_associates:
+```bash
+cd "/path/to/Migration agent/DBT"
+set -a && source ../.env && set +a
+export TARGET_SCHEMA="lechley_migrated_cursor"
+./redshift_env/bin/dbt run --select clients.lechley_associates.* --profiles-dir . --project-dir .
+```
+
+**Why use --select?**
+- Avoids duplicate model errors from Templates folder
+- Only compiles and runs the specific client's models
+- Faster compilation and execution
+- Cleaner output
+
+**DO NOT** run dbt directly without environment variables!
+
 # Other important items
 - You must check you have the right dbt_project.yml file for the project before running any DBT script
+- Verify dbt_project.yml vars match migration_config.yml settings
 - You can only created/edit files in the DBT/models/clients/$clientName folder
+- **ALWAYS use --select clients.<clientName>.* when running DBT** to avoid Template folder duplicate errors
 - If in doubt, stop and ask a question to the ticket provider
 
+# Common DBT Issues and Solutions
+
+## Duplicate Model Errors
+If you get "dbt found two models with the same name" error:
+- This is caused by Templates folder having models with same names as client models
+- **SOLUTION**: Always use `--select clients.<clientName>.*` flag
+- Example: `./redshift_env/bin/dbt run --select clients.lechley_associates.* --profiles-dir . --project-dir .`
+
 #Transformation rules
-- Sometimes we aren't migrating all the users. If the required user doesn't exist in the user table, then use ¢master_id from the dbt_project.yml
+- Sometimes we aren't migrating all the users. If the required user doesn't exist in the user table, then use master_id from migration_config.yml (also copied to dbt_project.yml)
 
 
 

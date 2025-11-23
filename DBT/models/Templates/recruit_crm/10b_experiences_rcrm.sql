@@ -16,14 +16,14 @@
 WITH internal_persons AS (
     SELECT  id        AS person_id,
             atlas_id  AS atlas_person_id
-    FROM {{ ref('people_rcrm') }}
+    FROM {{ ref('3_people_rcrm') }}
 ),
 
 internal_companies AS (
     SELECT  id        AS company_id,
             atlas_id  AS atlas_company_id,
             name      AS company_name
-    FROM {{ ref('companies_rcrm') }}
+    FROM {{ ref('5_companies_rcrm') }}
 ),
 
 raw_experiences AS (
@@ -72,7 +72,7 @@ work_history_data AS (
         description,
         work_company_name
     FROM 
-        {{ ref('experiences_concat_rcrm') }}
+        {{ ref('10a_experiences_concat_rcrm') }}
     WHERE 
         work_start_date IS NOT NULL
         AND title IS NOT NULL

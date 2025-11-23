@@ -11,7 +11,7 @@ WITH internal_persons AS (
         candidate_slug,
         contact_slug
     FROM 
-        {{ ref('people_rcrm') }}
+        {{ ref('3_people_rcrm') }}
 ),  
 internal_options AS (
     SELECT 
@@ -19,9 +19,9 @@ internal_options AS (
         cao.atlas_id AS option_id,
         cao.id AS external_id
     FROM 
-        {{ ref('custom_attribute_options_rcrm') }} cao
+        {{ ref('17b_custom_attribute_options_rcrm') }} cao
     INNER JOIN 
-        {{ ref('custom_attributes_rcrm') }} ca ON ca.atlas_id = cao.atlas_attribute_id
+        {{ ref('17a_custom_attributes_rcrm') }} ca ON ca.atlas_id = cao.atlas_attribute_id
     WHERE 
         ca.name IN ('Candidate Hotlist', 'Contact Hotlist')
 ),

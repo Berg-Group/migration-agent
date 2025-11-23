@@ -6,14 +6,14 @@ WITH internal_persons AS (
     SELECT 
         id as person_id,
         atlas_id as atlas_person_id
-    FROM {{ ref('people_rcrm') }}
+    FROM {{ ref('3_people_rcrm') }}
 ),
 
 internal_projects AS (
     SELECT 
         id  AS project_id,
         atlas_id AS atlas_project_id
-    FROM {{ ref('projects_rcrm') }}
+    FROM {{ ref('12_projects_rcrm') }}
 ),
 
 candidate_data AS (

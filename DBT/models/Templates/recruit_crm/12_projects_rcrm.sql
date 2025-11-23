@@ -6,7 +6,7 @@ WITH internal_companies AS (
     SELECT 
         id as company_id,
         atlas_id as atlas_company_id
-    FROM {{ ref('companies_rcrm') }}
+    FROM {{ ref('5_companies_rcrm') }}
 ),
 
 assignments AS (

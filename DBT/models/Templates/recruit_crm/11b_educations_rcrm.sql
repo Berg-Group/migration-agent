@@ -7,7 +7,7 @@ WITH internal_persons AS (
         id AS person_id,
         atlas_id AS atlas_person_id
     FROM 
-        {{ ref('people_rcrm') }}
+        {{ ref('3_people_rcrm') }}
 ),
 
 education_data AS (
@@ -20,7 +20,7 @@ education_data AS (
         education_start_date,
         education_end_date
     FROM 
-        {{ ref('educations_concat_rcrm') }}
+        {{ ref('11a_educations_concat_rcrm') }}
     WHERE 
         institute_name IS NOT NULL
         AND TRIM(institute_name) <> ''
