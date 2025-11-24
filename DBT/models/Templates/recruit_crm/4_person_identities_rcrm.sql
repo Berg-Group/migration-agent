@@ -140,7 +140,7 @@ joined AS (
            d.class_type,
            d.identity_type_type
     FROM dedup d
-    LEFT JOIN {{ ref('people_rcrm') }} p
+    LEFT JOIN {{ ref('3_people_rcrm') }} p
            ON p.id = d.person_id
 )
 

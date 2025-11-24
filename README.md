@@ -12,6 +12,16 @@ This repository contains two applications for data migration workflows:
 - **Redshift Database Access**
 - **dbt CLI** (install via `pip install dbt-redshift`)
 
+## Written by Jordan
+This seems to be the command line that works
+
+
+For QA
+cd "/Users/jordanshlosberg/Library/CloudStorage/OneDrive-AtlasTechnology/Scripts/Migration agent/QA Suite" && set -a && source ../.env && set +a && npm run qa people
+
+For Transforms
+cd "/Users/jordanshlosberg/Library/CloudStorage/OneDrive-AtlasTechnology/Scripts/Migration agent/DBT" && set -a && source ../.env && set +a && export TARGET_SCHEMA="lechley_migrated_cursor" && ./redshift_env/bin/dbt run --select clients.lechley_associates.3_people_rcrm --profiles-dir . --project-dir .
+
 ## Initial Setup
 
 ### 1. Environment Variables

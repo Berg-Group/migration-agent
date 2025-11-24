@@ -2,10 +2,13 @@
 # Fill in all variables below before running the migration
 
 # Client Information
-client_name: "lechley associates"  # e.g., "acme_corp" - This will be the folder name in DBT/models/clients/
+client_name: "lechley_associates"  # e.g., ALL LOWER CASE AND NO SPACES
 source_crm: "recruitcrm"  # e.g., "bullhorn", "recruitcrm", "vincere", etc. - Must match a folder in DBT/models/
 source_schema: "lechley_public"  # the name of the schema on Redshift
 target_schema: "lechley_migrated_cursor"  # e.g., "atlas_migrated"
+master_id: ""  # Master user ID to use when required user doesn't exist in user table
+agency_id: ""  # Agency ID to use when required agency doesn't exist in agency table
+
 
 # Linear Ticket Information
 linear_ticket:
@@ -23,13 +26,9 @@ tables_to_transform:
 
 # Master Configuration
 # Used when not all users are being migrated
-master_id: ""  # Master user ID to use when required user doesn't exist in user table
 
-# DBT Configuration
-dbt_config:
-  project_file: "DBT/dbt_project.yml"  # Path to the dbt_project.yml to use
-  profiles_file: "DBT/profiles.yml"  # Path to the profiles.yml file
-  
+
+
 
 # QA Configuration
 qa_config:
@@ -45,7 +44,8 @@ migration_settings:
 paths:
   dbt_models_default: "DBT/models/"  # Where default CRM models are
   dbt_models_clients: "DBT/models/clients/"  # Where client-specific models go
-  crm_knowledge_base: "DBT/CRM knowledge base/"  # CRM knowledge base location
+  crm_knowledge_base: "DBT/knowledge_base/crm"  # CRM knowledge base location
+  table_knowledge_base: "DBT/knowledge_base/table"  # Table knowledge base location
   qa_suite: "QA Suite/"  # QA Suite location
 
 # Additional Notes
@@ -53,3 +53,8 @@ notes: |
   Add any additional notes or special instructions here.
   This section is for documentation purposes only.
 
+# DBT Configuration
+dbt_config:
+  project_file: "dbt/dbt_project.yml"  # Path to the dbt_project.yml to use
+  profiles_file: "dbt/profiles.yml"  # Path to the profiles.yml file
+  
