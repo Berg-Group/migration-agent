@@ -7,14 +7,14 @@ WITH internal_companies AS (
         id AS company_id,
         atlas_id AS atlas_company_id 
     FROM 
-        {{ ref('5_companies_rcrm') }}
+        {{ ref('companies_rcrm') }}
 ),
 
 internal_persons AS (
     SELECT
         COALESCE(contact_slug, id)                  AS person_id, 
         atlas_id               AS atlas_person_id
-    FROM {{ ref('3_people_rcrm') }}
+    FROM {{ ref('people_rcrm') }}
 ),
 
 contacts_with_companies AS (

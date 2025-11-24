@@ -1,97 +1,141 @@
-CURSOR RULES (DASH FORMAT ONLY)
+CURSOR RULES 
+
+Command Execution Rule (Critical)
+
+- Cursor must execute shell commands one per line, never combined with &&, never chained, and never combined with quoted paths. 
+- If you write && you die immediately. Don't do it.
+
+The sequence for running DBT is:
+- Change directory
+- Load env
+- Export schema
+- Run DBT
+
+Each step is its own terminal command.
+
+This rule completely eliminates the broken-eval behaviour you keep seeing.
 
 1. DBT + MIGRATION CONTEXT
 - DBT models live under models/.
 - Client-specific models live under models/clients/<client_name_folder>.
 - CRM template models live under models/<crm_template_folder>.
-- Parent directory contains: .env with Redshift credentials, migration_config.yml with client_name, source_crm, source_schema, target_schema, master_id.
+- The parent directory contains:
+  - an .env file with Redshift credentials,
+  - a migration_config.yml with client_name, source_crm, source_schema, target_schema, master_id.
 - Cursor must never invent schema fields or warehouse assumptions.
-- Cursor must ask the user whenever any structure, field, or requirement is unclear.
+- Cursor must ask the user whenever any structure, field, or requirement is unclear and cannot be inferred from config or code.
 
 2. DBT KNOWLEDGE BASE (CRM + TABLE)
-- crm/ holds general rules for how each CRM behaves (naming patterns, null patterns, joins, location structure, etc).
+- crm/ holds general rules for how each CRM behaves (naming patterns, null patterns, joins, location structure, etc.).
 - table/ holds per-table quirks, fallback rules, field nuances, column expectations, known issues.
 - Cursor must always consult crm/ for CRM-wide behaviour.
 - Cursor must always consult table/ for table-level rules.
-- Cursor must combine crm/ + table/ knowledge when reasoning about any transformation.
+- Cursor must combine crm/ + table/ knowledge when reasoning about any transformation or QA failure.
 
 3. DATA AND MODEL INVESTIGATION RULES
 - migration_config.yml is the single source of truth for client_name, source_crm, source_schema, target_schema, master_id.
 - .env is the source of truth for Redshift connection variables.
-- Cursor must use these values to determine source_schema (raw data) and target_schema (final tables).
-- Cursor must identify which table each DBT model materializes to.
+- Cursor must use these values to determine:
+  - which schema holds raw data (source_schema),
+  - which schema holds transformed tables (target_schema),
+  - which tables each DBT model is expected to materialize.
+- Cursor must identify the target table for each DBT model.
 - If any required field, structure, grain, or relationship is unclear, Cursor must ask the user.
-- Cursor may generate SQL but must not run commands.
+- Cursor may generate and execute SQL queries via the project’s database integration when available, and should use query results to inform its reasoning.
 
 4. REDSHIFT ACCESS (CONCEPTUAL ONLY)
-- Redshift credentials include host, port, database, username, password.
-- Cursor must assume the user loads these into the environment.
-- Cursor must not hardcode credentials.
-- Cursor must ask the user if credentials appear inconsistent or missing.
+- Redshift credentials include host, port, database name, username, and password.
+- Cursor should assume the runtime environment or wrapper script loads these into the process before DBT or QA execution.
+- Cursor must not hardcode credentials into code, models, or committed files.
+- Cursor must ask the user if credentials or connection details appear inconsistent or missing.
 
-5. DBT MODEL WORKFLOW
+5. DBT MODEL WORKFLOW (CLIENT LEVEL)
 - CRM templates live under models/<crm_template_folder>.
 - Client-specific models live under models/clients/<client_name_folder>.
-- Only edit client-specific models unless the user explicitly approves template-level changes.
-- Cursor must identify the target table of any model using target_schema.
-- Cursor must check how the table is used downstream in DBT and QA.
-- If grain, keys, or join logic are unclear, Cursor must ask the user.
-- Cursor must apply crm/ and table/ knowledge consistently.
+- Cursor should only edit client-specific models unless the user explicitly approves template-level changes.
+- For any model, Cursor must:
+  - identify the target table and schema using target_schema and dbt configuration,
+  - consider how that table is used in downstream DBT models and QA checks,
+  - apply crm/ and table/ rules when interpreting fields (e.g. location, status, stages, IDs),
+  - ask the user if grain, keys, or joins remain ambiguous after code inspection.
 
 6. MODEL INVESTIGATION FLOW
-- Identify the DBT model file and its full namespace.
-- Determine the target table using target_schema.
-- Examine joins, filters, keys, aggregations, mapping tables, and assumptions.
-- Suggest SQL to inspect row counts, nulls, duplicates, or unexpected patterns.
-- Ask the user clarifying questions such as:
-  - should this field exist?
-  - should this be unique?
-  - is null acceptable?
-  - is this mapping table valid?
-- Cursor must not change business behaviour when requirements are unclear.
+- Identify the DBT model file and its fully qualified name within the client namespace.
+- Determine the target table using target_schema and the model’s configuration.
+- Examine:
+  - joins,
+  - filters,
+  - aggregations,
+  - key selection,
+  - use of mapping tables,
+  - documented quirks from crm/ and table/.
+- Suggest SQL to inspect:
+  - row counts,
+  - null rates,
+  - duplicates on key columns,
+  - distributions of important fields,
+  - coverage of fallback component fields (e.g. city, state, country for location).
+- Ask clarifying questions such as:
+  - should this field exist for this client?
+  - should this be unique per entity?
+  - is it acceptable for this field to be null?
+  - is this mapping table correct for this CRM?
+- Cursor must not change business behaviour where requirements are unclear.
 
-7. WRAPPER SCRIPT VS MANUAL RUNS (CONCEPTUAL)
-- A wrapper script exists in the parent directory and prepares env variables and runs DBT.
-- Cursor should treat the wrapper script as the default execution path.
-- Cursor must refer to DBT execution conceptually and must not include literal DBT commands.
+7. WRAPPER SCRIPT VS DIRECT DBT EXECUTION
+- A wrapper script exists in the parent directory to prepare environment variables and run DBT with the correct profile and project directory.
+- Cursor should treat the wrapper script as the default way to run DBT when possible.
+- If the wrapper is unavailable or inappropriate for a specific task, Cursor may run DBT directly using the project’s virtual environment DBT executable rather than a system-wide dbt.
+- When running DBT directly, Cursor must:
+  - ensure it is in the DBT directory,
+  - ensure environment variables from the parent .env have been loaded,
+  - ensure target_schema is set from migration_config.yml,
+  - select only the intended client model (clients.<client_name>.<model_name>).
+- Cursor should run DBT commands itself in the integrated terminal and not ask for permission, unless required values are missing or ambiguous.
 
 8. QA SUITE (CONCEPTUAL RULES)
-- After DBT models run, the QA Suite validates table groups and full sweeps.
-- QA expects specific tables and fields in target_schema.
+- The QA Suite validates table groups and full sweeps after DBT models have been run.
+- The QA Suite expects specific tables and fields in target_schema to exist and be correctly populated.
 - When a QA failure occurs, Cursor must:
-  - trace the failure back to the responsible DBT model,
-  - identify missing or incorrect fields,
-  - propose precise updates,
-  - ask for confirmation when business behaviour is unclear.
-- Cursor must speak about QA conceptually and avoid specific commands.
+  - trace the failure back to the responsible DBT model or model group,
+  - identify which fields are missing, mis-typed, or incorrectly populated,
+  - propose precise, minimal updates to the relevant model(s),
+  - ask for confirmation when behaviour is business-specific or client-specific.
+- Cursor should trigger QA runs itself as part of the per-model loop defined in the parent rules, and interpret the results.
 
 9. MODIFICATION GUARDRAILS
-- Cursor must only modify models/clients/<client_name_folder> unless instructed otherwise.
-- Cursor must preserve dbt_project.yml and profiles.yml.
-- Cursor must avoid global changes unless the user explicitly approves them.
-- Cursor must ask if a proposed change affects multiple clients or CRM templates.
+- Cursor must only modify models/clients/<client_name_folder> unless explicitly instructed to change templates or shared models.
+- Cursor must preserve the integrity of dbt_project.yml and profiles.yml (do not introduce breaking config changes without clear intent).
+- Cursor must avoid broad, global changes that would affect other clients or CRMs unless the user confirms that scope is desired.
+- If a proposed modification may impact multiple clients or CRM templates, Cursor must explicitly state this impact and ask whether it is acceptable.
 
 10. DATA INVESTIGATION (REQUIRED SQL STEP)
-- When the user asks about missing values, coverage, fallbacks, enrichment, or field quality, Cursor must:
-  - identify the source table in source_schema,
-  - generate SQL to inspect raw CRM fields,
-  - show SQL before suggesting any modelling fix,
-  - use SQL patterns (null rates, distinct values, distribution) for reasoning,
-  - ask user if deeper inspection is required,
-  - never execute SQL itself.
-- Automatic SQL generation is required for questions such as:
-  - boost location coverage
-  - missing locality or metro fields
-  - fallback city/state/country logic
-  - phone/email/title/industry coverage
-  - any CRM field completeness
-- SQL inspection must occur before any DBT model suggestion.
+- When the user asks about missing values, coverage, fallbacks, enrichment, or field quality (for example: locality, metro, city, state, country, email, phone, title, industry), Cursor must:
+  - identify the correct source table(s) in source_schema,
+  - generate SQL to inspect raw CRM fields and their coverage,
+  - execute SQL via the available database integration when possible and use results in its reasoning,
+  - show or summarise SQL and results before proposing model changes,
+  - use patterns (null rates, distinct values, distributions, component combinations) to guide fallback and enrichment logic.
+- Example triggers include:
+  - boosting location coverage,
+  - filling missing locality or metro fields,
+  - deriving fallback city/state/country,
+  - examining phone/email/title/industry completeness,
+  - diagnosing CRM-specific field sparsity.
 
 11. REQUIRED SQL INSPECTION RULE
-- Cursor must always inspect raw data via SQL before proposing DBT changes.
-- Cursor must identify the correct table under source_schema.
-- Cursor must present SQL immediately.
-- Cursor must ask the user when assumptions involve CRM-specific or client-specific nuances.
-- Cursor must use SQL results to guide recommendations, not assumptions.
+- Cursor must inspect raw data via SQL before proposing non-trivial DBT changes that affect field coverage or fallback logic.
+- Cursor must:
+  - identify the correct source table in source_schema,
+  - generate and, when possible, execute SQL to understand data patterns,
+  - present or summarise SQL and key findings,
+  - ask the user when CRM or client-specific nuances are not documented.
+- Recommendations must be based on observed data patterns rather than assumptions.
 
-END OF RULESET
+12. AUTOMATION BEHAVIOUR (DBT FOLDER)
+- Cursor should run DBT and QA commands itself in the integrated terminal when required by the workflow, without asking for approval.
+- Cursor should only pause to ask the user when:
+  - required information (paths, schema names, client_name, table names) is missing or ambiguous,
+  - a change could impact multiple clients or CRMs and needs scope confirmation,
+  - a business rule or field meaning is unclear from existing config, crm/, and table/ knowledge.
+- Cursor should avoid complex multi-line or heavily chained shell constructs; it should execute commands in simple, sequential steps to reduce shell errors.
