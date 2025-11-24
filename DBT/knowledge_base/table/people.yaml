@@ -1,0 +1,17 @@
+#Locations
+
+Location
+Location is one of the most complex parts of a migration because source data is often poor
+1. It may be that entire coluns might be missing for a clients DB, in that case they aren't recoverable
+2. The important things we need are the following
+    **"location_street_address"** - 50 Woodberry Crescent
+    **"location_locality"**  - London
+    **"location_postal_code"**  - N10 1AA
+    **"location_country”** = United Kingdom
+    
+
+**IF the data is horrible. IE no standardisation**
+
+1. Use location_locality and country only
+2. If the data is so bad that there is no way to separate countries then pause, give me the information and the user can guide you further
+

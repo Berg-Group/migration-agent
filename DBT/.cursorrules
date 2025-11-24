@@ -50,6 +50,8 @@ This rule completely eliminates the broken-eval behaviour you keep seeing.
 - Cursor must ask the user if credentials or connection details appear inconsistent or missing.
 
 5. DBT MODEL WORKFLOW (CLIENT LEVEL)
+- You must initialise the virtual environment before running DBT.
+- This requires you to grab the relevant variables from the .env file and export them to the environment.
 - CRM templates live under models/<crm_template_folder>.
 - Client-specific models live under models/clients/<client_name_folder>.
 - Cursor should only edit client-specific models unless the user explicitly approves template-level changes.
