@@ -1,353 +1,97 @@
-# DBT Transformations - Running DBT Commands
-
-## 🚀 QUICK START - How to Run DBT
-
-**RECOMMENDED: Use --select to run only client models (avoids Template duplicates)**
-
-```bash
-# From the DBT directory:
-cd "/path/to/Migration agent/DBT"
-
-# Load environment variables
-set -a && source ../.env && set +a
-
-# Set TARGET_SCHEMA from migration_config.yml
-export TARGET_SCHEMA="<target_schema_value>"
-
-# Run ONLY the client models (replace <clientName> with actual client)
-./redshift_env/bin/dbt run --select clients.<clientName>.* --profiles-dir . --project-dir .
-```
-
-**Example for lechley_associates:**
-```bash
-cd "/path/to/Migration agent/DBT"
-set -a && source ../.env && set +a
-export TARGET_SCHEMA="lechley_migrated_cursor"
-./redshift_env/bin/dbt run --select clients.lechley_associates.* --profiles-dir . --project-dir .
-```
-
-**Why use --select clients.<clientName>.*?**
-- ✅ Avoids duplicate model errors from Templates folder
-- ✅ Only compiles and runs the specific client's models  
-- ✅ Faster compilation time
-- ✅ Cleaner output showing only relevant models
-
-**Alternative: Use the wrapper script (may encounter Template conflicts)**
-
-```bash
-cd "/path/to/Migration agent"
-bash run-dbt.sh run --profiles-dir . --project-dir .
-```
-
-This wrapper script automatically handles:
-- ✅ Loading .env credentials
-- ✅ Extracting TARGET_SCHEMA from migration_config.yml  
-- ✅ Running DBT from the correct directory
-- ✅ Using the virtual environment's dbt executable
-
-## ⚠️ IMPORTANT: Always Check migration_config.yml First!
-
-Before running any DBT commands, **ALWAYS read** `../migration_config.yml` (in the parent directory).
-
-This file contains ALL critical migration settings:
-- `target_schema` → becomes TARGET_SCHEMA environment variable
-- `source_schema` → should match `source_database` in dbt_project.yml
-- `client_name` → should match `clientName` in dbt_project.yml
-- `source_crm` → determines which template folder to use
-- `tables_to_transform` → which tables to migrate
-- `master_id` → fallback user ID for transformations
-
-## ⚠️ IMPORTANT: Environment Configuration
-
-DBT reads environment variables from the **parent directory** (Migration agent folder), NOT from this DBT directory.
-
-### Required Files in Parent Directory
-
-1. **`.env`** - Database credentials (DO NOT create .env in this DBT folder)
-   ```
-   REDSHIFT_USER=your_username
-   REDSHIFT_PASSWORD=your_password
-   REDSHIFT_HOST=your_host
-   REDSHIFT_PORT=5439
-   REDSHIFT_DB=your_database
-   ```
-
-2. **`migration_config.yml`** - Migration configuration including `target_schema`
-
-## Virtual Environment Setup
-
-DBT is installed in a Python virtual environment located at `DBT/redshift_env/`.
-
-### First Time Setup
-
-```bash
-cd "/path/to/Migration agent"
-bash setup.sh  # This creates the venv and installs all dependencies
-```
-
-### If DBT Command Not Found
-
-If you get `bash: dbt: command not found`, use one of these approaches:
-
-**Option 1: Use the run-dbt.sh wrapper (RECOMMENDED)**
-```bash
-cd "/path/to/Migration agent"
-bash run-dbt.sh run --profiles-dir . --project-dir .
-```
-
-**Option 2: Use the full path to dbt executable**
-```bash
-cd "/path/to/Migration agent/DBT"
-set -a && source ../.env && set +a
-export TARGET_SCHEMA=$(grep '^target_schema:' ../migration_config.yml | sed 's/target_schema: *"\?\([^"]*\)"\?/\1/' | tr -d '"')
-./redshift_env/bin/dbt run --profiles-dir . --project-dir .
-```
-
-**Option 3: Activate venv (may not work if PATH issues)**
-```bash
-cd "/path/to/Migration agent/DBT"
-source redshift_env/bin/activate
-set -a && source ../.env && set +a
-export TARGET_SCHEMA=$(grep '^target_schema:' ../migration_config.yml | sed 's/target_schema: *"\?\([^"]*\)"\?/\1/' | tr -d '"')
-dbt run --profiles-dir . --project-dir .
-```
-
-## How to Run DBT
-
-### From the Migration Agent Directory (Parent) - PREFERRED METHOD
-
-Use the wrapper script that loads environment variables:
-
-```bash
-# Run DBT models
-./run-dbt.sh run
-
-# Run specific models
-./run-dbt.sh run --select people_*
-
-# Test models
-./run-dbt.sh test
-
-# Debug connection
-./run-dbt.sh debug
-
-# Compile models without running
-./run-dbt.sh compile
-
-# Run and test in one command
-./run-dbt.sh build
-```
-
-### The Wrapper Script (`run-dbt.sh`)
-
-The `run-dbt.sh` script automatically:
-1. Loads environment variables from parent `.env` file
-2. Extracts `target_schema` from `migration_config.yml`
-3. Changes to the DBT directory
-4. Runs your DBT command
-5. Returns to the parent directory
-
-## DBT Configuration Files
-
-### `profiles.yml` 
-Defines the database connection using environment variables:
-- `REDSHIFT_HOST` - from parent `.env` file
-- `REDSHIFT_PORT` - from parent `.env` file (defaults to 5439)
-- `REDSHIFT_DB` - from parent `.env` file (defaults to 'dev')
-- `REDSHIFT_USER` - from parent `.env` file
-- `REDSHIFT_PASSWORD` - from parent `.env` file
-- `TARGET_SCHEMA` - **IMPORTANT**: This comes from `target_schema` in parent `migration_config.yml`, NOT from .env
-  * The `run-dbt.sh` script automatically extracts this value
-  * If running manually, you must export it: `export TARGET_SCHEMA="lechley_migrated_cursor"`
-
-### `dbt_project.yml`
-Contains project-specific variables:
-- `source_database` - Source schema name
-- `clientName` - Client name/slug
-- `agency_id` - Agency ID
-- `master_id` - Fallback user ID
-- `domain` - Domain name
-
-## Common DBT Commands
-
-```bash
-# Run all models
-./run-dbt.sh run
-
-# Run models for specific client
-./run-dbt.sh run --select clients.client_name.*
-
-# Run models with specific prefix
-./run-dbt.sh run --select people_*
-./run-dbt.sh run --select companies_*
-
-# Run a single model
-./run-dbt.sh run --select model_name
-
-# Test all models
-./run-dbt.sh test
-
-# Test specific model
-./run-dbt.sh test --select people_*
-
-# Debug connection issues
-./run-dbt.sh debug
-
-# Show documentation
-./run-dbt.sh docs generate
-./run-dbt.sh docs serve
-
-# Clean compiled files
-./run-dbt.sh clean
-
-# Compile without running
-./run-dbt.sh compile
-```
-
-## Workflow for Running Transformations
-
-1. **Configure** `migration_config.yml` in parent directory with:
-   - `target_schema` - Where transformed data will be written
-   - Client-specific variables
-
-2. **Set up** `dbt_project.yml` with project variables:
-   - `source_database`
-   - `clientName`
-   - `master_id`
-   - etc.
-
-3. **Run DBT transformations**:
-   ```bash
-   cd "/path/to/Migration agent/DBT"
-   set -a && source ../.env && set +a
-   export TARGET_SCHEMA="<target_schema_from_config>"
-   ./redshift_env/bin/dbt run --select clients.<clientName>.* --profiles-dir . --project-dir .
-   ```
-   
-   Example:
-   ```bash
-   cd "/path/to/Migration agent/DBT"
-   set -a && source ../.env && set +a
-   export TARGET_SCHEMA="lechley_migrated_cursor"
-   ./redshift_env/bin/dbt run --select clients.lechley_associates.* --profiles-dir . --project-dir .
-   ```
-
-4. **Run QA tests** after successful transformation:
-   ```bash
-   cd "QA Suite" && npm run qa
-   ```
-
-5. **Fix any issues** in DBT models and re-run
-
-## Important Notes
-
-### DO NOT:
-- ❌ Create a `.env` file in this DBT directory
-- ❌ Run `dbt` commands directly from this directory (they won't have env vars)
-- ❌ Modify `profiles.yml` to hardcode credentials
-
-### DO:
-- ✅ Use `./run-dbt.sh` from the parent directory
-- ✅ Keep credentials in parent `.env` file
-- ✅ Set `target_schema` in parent `migration_config.yml`
-- ✅ Update `dbt_project.yml` for each migration
-
-## Model Organization
-
-```
-models/
-├── clients/          # Client-specific transformations
-│   └── {clientName}/ # One folder per client
-├── bullhorn/         # Default Bullhorn transformations
-├── recruitcrm/       # Default RecruitCRM transformations
-├── vincere/          # Default Vincere transformations
-└── ...               # Other CRM templates
-```
-
-### Creating Client Models
-
-1. Copy default CRM models from `models/{sourceCRM}/` to `models/clients/{clientName}/`
-2. Customize the transformations as needed for the client
-3. Only edit files in `models/clients/{clientName}/` folder
-
-## Checking DBT Connection
-
-Before running transformations, verify connection:
-
-```bash
-./run-dbt.sh debug
-```
-
-This will show:
-- Configuration details
-- Database connection status
-- Any environment variable issues
-
-## Troubleshooting
-
-### "Could not find profile named 'default'"
-- Make sure you're running from parent directory using `./run-dbt.sh`
-- Check that `profiles.yml` exists in this DBT directory
-
-### "Database connection failed"
-- Verify credentials in parent `.env` file
-- Run `./run-dbt.sh debug` to see connection details
-- Check network access to Redshift
-
-### "target_schema not set"
-- Verify `migration_config.yml` in parent directory has `target_schema: "schema_name"`
-
-### Environment variables not loading
-- Use `./run-dbt.sh` wrapper script (don't run `dbt` directly)
-- Check that `.env` file exists in parent directory
-- Verify `.env` file has proper format (no spaces around `=`)
-- If running manually, load env vars: `set -a && source ../.env && set +a`
-- Don't forget TARGET_SCHEMA: extract it from migration_config.yml
-
-### "dbt: command not found"
-- DBT is installed in virtual environment at `DBT/redshift_env/bin/dbt`
-- ALWAYS use the wrapper script: `bash run-dbt.sh run` from parent directory
-- OR use full path: `./redshift_env/bin/dbt` from DBT directory
-- Don't rely on activating the venv - PATH may not update correctly
-
-### "dbt found two models with the same name" (duplicate models)
-- This happens when Templates folder has models with same names as client models
-- **SOLUTION**: Use `--select clients.<clientName>.*` to only compile client models
-- Example: `./redshift_env/bin/dbt run --select clients.lechley_associates.* --profiles-dir . --project-dir .`
-- This tells DBT to ignore all Template models and only run the specific client's models
-- Alternatively, disable Templates in dbt_project.yml under models config
-
-## Quick Reference
-
-**From DBT directory** (after loading env vars with `set -a && source ../.env && set +a` and `export TARGET_SCHEMA="..."`):
-
-| Task | Command |
-|------|---------|
-| Run client models | `./redshift_env/bin/dbt run --select clients.<clientName>.* --profiles-dir . --project-dir .` |
-| Run specific table prefix | `./redshift_env/bin/dbt run --select <clientName>_people_* --profiles-dir . --project-dir .` |
-| Test client models | `./redshift_env/bin/dbt test --select clients.<clientName>.* --profiles-dir . --project-dir .` |
-| Debug connection | `./redshift_env/bin/dbt debug --profiles-dir . --project-dir .` |
-| Clean compiled files | `./redshift_env/bin/dbt clean --profiles-dir . --project-dir .` |
-| Compile without running | `./redshift_env/bin/dbt compile --select clients.<clientName>.* --profiles-dir . --project-dir .` |
-
-**From parent directory using wrapper**:
-
-| Task | Command |
-|------|---------|
-| Run all transformations | `./run-dbt.sh run` |
-| Test transformations | `./run-dbt.sh test` |
-| Debug connection | `./run-dbt.sh debug` |
-| Clean compiled files | `./run-dbt.sh clean` |
-
-## After Running DBT
-
-Always run the QA suite to validate the transformations:
-
-```bash
-cd "QA Suite" && npm run qa
-# Or test specific tables:
-cd "QA Suite" && npm run qa people companies
-```
-
-Fix any QA failures by editing the DBT models and re-running the transformations.
-
+CURSOR RULES (DASH FORMAT ONLY)
+
+1. DBT + MIGRATION CONTEXT
+- DBT models live under models/.
+- Client-specific models live under models/clients/<client_name_folder>.
+- CRM template models live under models/<crm_template_folder>.
+- Parent directory contains: .env with Redshift credentials, migration_config.yml with client_name, source_crm, source_schema, target_schema, master_id.
+- Cursor must never invent schema fields or warehouse assumptions.
+- Cursor must ask the user whenever any structure, field, or requirement is unclear.
+
+2. DBT KNOWLEDGE BASE (CRM + TABLE)
+- crm/ holds general rules for how each CRM behaves (naming patterns, null patterns, joins, location structure, etc).
+- table/ holds per-table quirks, fallback rules, field nuances, column expectations, known issues.
+- Cursor must always consult crm/ for CRM-wide behaviour.
+- Cursor must always consult table/ for table-level rules.
+- Cursor must combine crm/ + table/ knowledge when reasoning about any transformation.
+
+3. DATA AND MODEL INVESTIGATION RULES
+- migration_config.yml is the single source of truth for client_name, source_crm, source_schema, target_schema, master_id.
+- .env is the source of truth for Redshift connection variables.
+- Cursor must use these values to determine source_schema (raw data) and target_schema (final tables).
+- Cursor must identify which table each DBT model materializes to.
+- If any required field, structure, grain, or relationship is unclear, Cursor must ask the user.
+- Cursor may generate SQL but must not run commands.
+
+4. REDSHIFT ACCESS (CONCEPTUAL ONLY)
+- Redshift credentials include host, port, database, username, password.
+- Cursor must assume the user loads these into the environment.
+- Cursor must not hardcode credentials.
+- Cursor must ask the user if credentials appear inconsistent or missing.
+
+5. DBT MODEL WORKFLOW
+- CRM templates live under models/<crm_template_folder>.
+- Client-specific models live under models/clients/<client_name_folder>.
+- Only edit client-specific models unless the user explicitly approves template-level changes.
+- Cursor must identify the target table of any model using target_schema.
+- Cursor must check how the table is used downstream in DBT and QA.
+- If grain, keys, or join logic are unclear, Cursor must ask the user.
+- Cursor must apply crm/ and table/ knowledge consistently.
+
+6. MODEL INVESTIGATION FLOW
+- Identify the DBT model file and its full namespace.
+- Determine the target table using target_schema.
+- Examine joins, filters, keys, aggregations, mapping tables, and assumptions.
+- Suggest SQL to inspect row counts, nulls, duplicates, or unexpected patterns.
+- Ask the user clarifying questions such as:
+  - should this field exist?
+  - should this be unique?
+  - is null acceptable?
+  - is this mapping table valid?
+- Cursor must not change business behaviour when requirements are unclear.
+
+7. WRAPPER SCRIPT VS MANUAL RUNS (CONCEPTUAL)
+- A wrapper script exists in the parent directory and prepares env variables and runs DBT.
+- Cursor should treat the wrapper script as the default execution path.
+- Cursor must refer to DBT execution conceptually and must not include literal DBT commands.
+
+8. QA SUITE (CONCEPTUAL RULES)
+- After DBT models run, the QA Suite validates table groups and full sweeps.
+- QA expects specific tables and fields in target_schema.
+- When a QA failure occurs, Cursor must:
+  - trace the failure back to the responsible DBT model,
+  - identify missing or incorrect fields,
+  - propose precise updates,
+  - ask for confirmation when business behaviour is unclear.
+- Cursor must speak about QA conceptually and avoid specific commands.
+
+9. MODIFICATION GUARDRAILS
+- Cursor must only modify models/clients/<client_name_folder> unless instructed otherwise.
+- Cursor must preserve dbt_project.yml and profiles.yml.
+- Cursor must avoid global changes unless the user explicitly approves them.
+- Cursor must ask if a proposed change affects multiple clients or CRM templates.
+
+10. DATA INVESTIGATION (REQUIRED SQL STEP)
+- When the user asks about missing values, coverage, fallbacks, enrichment, or field quality, Cursor must:
+  - identify the source table in source_schema,
+  - generate SQL to inspect raw CRM fields,
+  - show SQL before suggesting any modelling fix,
+  - use SQL patterns (null rates, distinct values, distribution) for reasoning,
+  - ask user if deeper inspection is required,
+  - never execute SQL itself.
+- Automatic SQL generation is required for questions such as:
+  - boost location coverage
+  - missing locality or metro fields
+  - fallback city/state/country logic
+  - phone/email/title/industry coverage
+  - any CRM field completeness
+- SQL inspection must occur before any DBT model suggestion.
+
+11. REQUIRED SQL INSPECTION RULE
+- Cursor must always inspect raw data via SQL before proposing DBT changes.
+- Cursor must identify the correct table under source_schema.
+- Cursor must present SQL immediately.
+- Cursor must ask the user when assumptions involve CRM-specific or client-specific nuances.
+- Cursor must use SQL results to guide recommendations, not assumptions.
+
+END OF RULESET
