@@ -36,3 +36,5 @@ logs/
 *.tmp
 *.temp
 
+# Client-specific DBT models
+DBT/models/clients/

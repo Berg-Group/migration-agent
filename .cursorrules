@@ -1,0 +1,66 @@
+MIGRATION PLAYBOOK (PARENT LEVEL)
+
+REALLY IMPORTANT
+- Cursor must execute shell commands one per line, never combined with &&, never chained, and never combined with quoted paths. 
+- If you write && you die immediately. Don't do it.
+
+The sequence for running DBT is:
+- Change directory
+- Load env
+- Export schema
+- Run DBT
+
+
+High-level goal:
+Cursor is responsible for driving the migration workflow end-to-end for each client: setting up client models, running DBT models one by one, running the QA Suite after each model, and looping until everything passes. Cursor should run commands itself in the integrated terminal wherever possible, and only stop to ask the user when required information is missing.
+
+1. Read migration_config.yml first
+- Open migration_config.yml in the parent directory.
+- Retrieve at least: client_name, source_crm, source_schema, target_schema, master_id, tables_to_transform.
+- Treat migration_config.yml as the source of truth for client-specific configuration.
+
+2. Create / confirm the client workspace
+- Ensure the client has a folder inside DBT/models/clients corresponding to client_name.
+- If needed, copy template SQL models from the appropriate CRM template folder (DBT/models/<source_crm>) into DBT/models/clients/<client_name>.
+- All editing for this migration must occur in the client folder, not in the template folders.
+
+3. Determine the model run order
+- Navigate (conceptually or via terminal) to DBT/models/clients/<client_name>.
+- List the client SQL model files and sort them in natural numeric order (e.g. 1_, 2_, 3_…).
+- Treat this as the canonical sequence for running models for this client.
+
+4. Per-model workflow (for each model in order)
+For each model file in DBT/models/clients/<client_name>:
+
+- Move execution context to the DBT directory.
+- Ensure environment variables from the parent .env are loaded (using the project’s standard method).
+- Ensure target_schema is set according to migration_config.yml.
+- Execute DBT for this single model only, using the clients.<client_name>.<model_name> selection pattern.
+- Cursor should run these steps itself in the integrated terminal, without asking for approval, as long as all required information (paths, client_name, target_schema) is known.
+
+5. Immediate QA after each model
+- After each successful model run, immediately run the QA Suite for the relevant table prefix.
+- The table prefix is usually the part of the model filename before the CRM suffix (for example: 3_people_rcrm → “people”).
+- Verify QA output before moving to the next model.
+- Cursor should run the QA command(s) itself using the established QA Suite mechanism.
+
+6. Loop until clean
+- If QA fails: inspect the error, identify the responsible DBT model, adjust only the necessary logic in the client model, rerun the model, then rerun the corresponding QA group.
+- Repeat this fix → rerun model → rerun QA loop until QA passes for that model.
+- Proceed to the next model only when QA for the current one is clean.
+- When all client models have passed their QA checks, run the full QA Suite sweep once more to confirm everything passes together.
+
+7. Guardrails
+- Do not modify template SQL files; only use them as a source to copy into client-specific folders.
+- Ensure dbt_project.yml and profiles.yml remain aligned with migration_config.yml (source_schema, client_name, etc.).
+- Always ensure environment variables are loaded from the parent .env before running DBT or QA.
+- When DBT reports duplicate models, confirm that only client-specific models under clients.<client_name> are being selected.
+- When fallback or default values are needed, use master_id and other values from migration_config.yml rather than introducing hardcoded constants.
+
+8. Automation behaviour
+- Cursor should run DBT models and QA checks automatically in the integrated terminal when the workflow requires it.
+- Cursor should not ask for permission before running these commands.
+- Cursor must pause and ask the user only when:
+  - a required value (path, client_name, schema name, table name) is missing or ambiguous,
+  - a business rule is unclear (e.g. how a particular field should behave),
+  - a proposed change could affect multiple clients or CRMs and scope needs confirmation.

@@ -35,13 +35,15 @@ def test_redshift_connection():
     # Redshift connection parameters from environment variables
     host = os.getenv('REDSHIFT_HOST')
     port = os.getenv('REDSHIFT_PORT', '5439')  # Default Redshift port is 5439
-    database = os.getenv('REDSHIFT_DATABASE')
+    database = os.getenv('REDSHIFT_DATABASE') or os.getenv('REDSHIFT_DB')  # Support both variable names
     user = os.getenv('REDSHIFT_USER')
     password = os.getenv('REDSHIFT_PASSWORD')
     
     # Check if all required environment variables are set
-    required_vars = ['REDSHIFT_HOST', 'REDSHIFT_DATABASE', 'REDSHIFT_USER', 'REDSHIFT_PASSWORD']
+    required_vars = ['REDSHIFT_HOST', 'REDSHIFT_USER', 'REDSHIFT_PASSWORD']
     missing_vars = [var for var in required_vars if not os.getenv(var)]
+    if not database:
+        missing_vars.append('REDSHIFT_DATABASE or REDSHIFT_DB')
     
     if missing_vars:
         print(f"Error: Missing required environment variables: {', '.join(missing_vars)}")

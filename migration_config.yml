@@ -1,0 +1,60 @@
+# Migration Configuration File
+# Fill in all variables below before running the migration
+
+# Client Information
+client_name: "lechley_associates"  # e.g., ALL LOWER CASE AND NO SPACES
+source_crm: "recruitcrm"  # e.g., "bullhorn", "recruitcrm", "vincere", etc. - Must match a folder in DBT/models/
+source_schema: "lechley_public"  # the name of the schema on Redshift
+target_schema: "lechley_migrated_cursor"  # e.g., "atlas_migrated"
+master_id: ""  # Master user ID to use when required user doesn't exist in user table
+agency_id: ""  # Agency ID to use when required agency doesn't exist in agency table
+
+
+# Linear Ticket Information
+linear_ticket:
+  ticket_url: ""  # Add the Linear ticket URL here, e.g. "https://linear.app/your-team/ticket-123"
+
+
+# Tables to Transform
+# List all tables that need to be migrated/transformed
+tables_to_transform:
+  - "users"  # e.g., "users"
+  - "people"  # e.g., "people"
+  - "companies"  # e.g., "companies"
+  - "projects"  # e.g., "projects"
+  # Add more tables as needed
+
+# Master Configuration
+# Used when not all users are being migrated
+
+
+
+
+# QA Configuration
+qa_config:
+  run_after_transformation: true  # Automatically run QA after DBT transformations
+  max_iterations: 10  # Maximum number of QA fix iterations before manual review
+  
+# Migration Settings
+migration_settings:
+  migrate_all_users: true  # Set to false if only migrating specific users
+
+  
+# File Paths (usually don't need to change these)
+paths:
+  dbt_models_default: "DBT/models/"  # Where default CRM models are
+  dbt_models_clients: "DBT/models/clients/"  # Where client-specific models go
+  crm_knowledge_base: "DBT/knowledge_base/crm"  # CRM knowledge base location
+  table_knowledge_base: "DBT/knowledge_base/table"  # Table knowledge base location
+  qa_suite: "QA Suite/"  # QA Suite location
+
+# Additional Notes
+notes: |
+  Add any additional notes or special instructions here.
+  This section is for documentation purposes only.
+
+# DBT Configuration
+dbt_config:
+  project_file: "dbt/dbt_project.yml"  # Path to the dbt_project.yml to use
+  profiles_file: "dbt/profiles.yml"  # Path to the profiles.yml file
+  
