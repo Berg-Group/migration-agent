@@ -170,3 +170,6 @@ This rule completely eliminates the broken-eval behaviour you keep seeing.
   - a business rule or field meaning is unclear from existing config, crm/, and table/ knowledge.
 - Cursor should avoid complex multi-line or heavily chained shell constructs; it should execute commands in simple, sequential steps to reduce shell errors.
 - If DBT fails with environment variable errors, immediately check if .env was loaded correctly using `echo $REDSHIFT_HOST`.
+
+
+test
