@@ -1,0 +1,89 @@
+# Companies
+
+Companies are a critical part of migrations and share many of the same location complexity issues as people, plus have specific fields like relationship and company_size that need validation.
+
+## Key Issues to Check
+
+1. **Location Data Quality**
+   - Companies have the same location complexity as people - source data is often poor quality
+   - Location fields needed: `location_street_address`, `location_locality`, `location_postal_code`, `location_country`, `location_metro`, `location_region`
+   - **CRITICAL DISTINCTION**: When verifying location issues, Agent MUST compare source data vs transformed data:
+     - If location data is missing or poor in SOURCE → Document but DO NOT FIX (this is source data quality)
+     - If location data was VALID in source but became corrupted/missing AFTER transformation → MUST FIX (this is a transformation bug)
+   - **Common Issue**: Location fields may be NULL in transformed data when they exist in source (location_country, location_metro, location_name, location_region)
+   - **Common Issue**: location_locality may have different format in transformed data (concatenated with region/country) vs source (just city name)
+   - Templates use fallback logic: prefer specific fields (street_address, postal_code, country) when available, fallback to location_locality
+   - If source has mixed data types in same column (e.g., "London, Belgium, 23 Roman Road"), this is source data quality issue - document it
+   - Agent should verify all location fields are populated when source has the data - check if transformation is losing location data
+   - If source has location_country="United Kingdom" but transformed has NULL → FIX transformation (transformation lost valid data)
+
+2. **Relationship Field Validation**
+   - The `relationship` field MUST be one of: "none", "target", "client"
+   - Templates map source status/type fields to these values (e.g., "active" → "client", "prospect" → "none")
+   - Agent should verify no invalid values exist - check that all relationship values are in the allowed set
+   - If source has status values not mapped in template, agent may need to add mapping logic
+   - Default is usually "none" if source status doesn't match any mapping
+
+3. **Company Size Validation**
+   - The `size` field (company_size) must match specific values: "1-10", "11-50", "51-200", "201-500", "501-1000", "1001-5000", "5001-10000", "10000+"
+   - Templates use `{{ number_range() }}` macro to convert numeric employee counts to these ranges
+   - Agent should verify all size values are in the allowed set
+   - If source has employee counts that don't map correctly, check the number_range macro logic
+   - NULL size is acceptable if source doesn't have employee data
+
+4. **Company Name Quality**
+   - The `name` field is required and must not be NULL or empty
+   - Some CRMs have placeholder names like "Imported Contacts" - templates should filter these out
+   - Agent should verify no NULL or empty names exist
+   - Check for duplicate company names - this may indicate duplicate companies that need deduplication
+   - **CRITICAL DISTINCTION**: 
+     - If source has duplicate/malformed names → Document but DO NOT FIX (source data quality)
+     - If transformation corrupted valid company names → MUST FIX (transformation bug)
+
+5. **Summary Field (Company Description)**
+   - The `summary` field contains company description/notes
+   - Some CRMs store this as HTML - templates use `{{ html_to_markdown() }}` macro to convert
+   - Agent should verify HTML is properly converted to markdown/text
+   - If source has HTML but transformed still has HTML tags → FIX transformation
+   - NULL summary is acceptable if source doesn't have description data
+
+6. **Row Count Verification**
+   - Compare row counts with source data - reasonable variance is ±5-10%
+   - If variance is > 10%, investigate:
+     - Filtering logic (e.g., excluding "Imported Contacts" or NULL names)
+     - Missing source records
+     - Deduplication differences
+   - Some templates filter out specific company names or statuses - verify this is working correctly
+
+## What the Agent Should Check
+
+1. **Verify location fields are preserved**: Compare source vs transformed - if source has location_country, location_metro, location_name, location_region but transformed has NULL → FIX transformation
+2. **Check location_locality format**: Transformation may concatenate more details (e.g., "Manchester, Greater Manchester, United Kingdom") vs source (e.g., "Manchester") - verify this is intentional or fix if not
+3. Verify location_locality is populated when source has location data - compare source vs transformed
+4. Check that relationship field only contains "none", "target", or "client" - no invalid values
+5. Verify company_size values are in allowed set or NULL - check number_range macro worked correctly
+6. Check for NULL or empty company names - these should be filtered out
+7. Verify no duplicate company names exist (unless they're actually different companies)
+8. Check summary field - if source had HTML, verify it's converted to markdown/text
+9. Compare row counts with source - investigate if significant difference (>10%)
+10. **Spot-check by comparing source vs transformed**: Sample a few records and verify transformation didn't corrupt valid source data
+    - If source had valid data but transformed doesn't → FIX transformation
+    - If source had invalid data → DO NOT FIX, document as source data quality issue
+
+## Common Patterns
+
+- **RecruitCRM**: Uses company_data table, maps relationship to "target" by default
+- **Bullhorn**: Has status field that maps to relationship (active/terms signed → client, archive/passive/prospect → none)
+- **Invenias**: May have different company status fields
+- **FileFinder**: May have company type or status fields that need mapping
+
+## Notes
+
+- Templates handle location fallback logic, relationship mapping, and size conversion
+- Agent's main job is to VERIFY the results are correct and fix issues if found
+- **IMPORTANT**: Agent must distinguish between source data quality issues (don't fix) vs transformation bugs (must fix)
+- Only fix values if the transformation process corrupted valid source data
+- If source data is poor quality, document it but don't try to fix it in the transformation
+- Location issues are similar to people - prefer specific fields when available, use location_locality as fallback
+- If verification reveals transformation problems, agent may need to adjust the client-specific model (not the template)
+

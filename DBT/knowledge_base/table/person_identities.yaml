@@ -1,0 +1,125 @@
+# Person Identities
+
+Person Identities are one of the most complex parts of a migration because source data quality is often poor and identity types can be misclassified.
+
+**NOTE**: This knowledge base file format should be used as a template for other tables. When creating knowledge base files for other tables, follow this structure:
+- Start with a brief description of why this table is complex/problematic
+- List "Key Issues to Check" as numbered points focusing on the most significant differences and problems
+- Include a "What the Agent Should Check" section with actionable verification steps
+- Add "Common Patterns" section if applicable
+- Keep it focused on issues that need verification, not implementation details (templates handle that)
+
+## Key Issues to Check
+
+1. **Email Normalization Issues**
+   - Source data often has emails missing dots (e.g., `hotmailcouk` instead of `hotmail.co.uk`) - this is a SOURCE DATA QUALITY issue and should NOT be fixed
+   - The `{{ email_norm() }}` macro handles basic cleaning (whitespace, case) but does NOT fix missing dots
+   - Agent should check if emails look valid after normalization - they should contain '@' and at least one '.'
+   - **CRITICAL DISTINCTION**:
+     - If emails are invalid in SOURCE data (missing dots, malformed) → DO NOT FIX, this is source data quality
+     - If emails were VALID in source but became invalid AFTER transformation/normalization → MUST FIX, this is a transformation bug
+   - Agent should verify: compare source data vs transformed data - if transformation corrupted valid emails, fix the transformation logic
+   - Same principle applies to phone numbers and other values: only fix if transformation broke them, not if source data is poor
+
+2. **Type and Class_Type Mismatches**
+   - The `type` field (e.g., 'email', 'phone', 'linkedin') MUST always match the `class_type` field (e.g., 'EmailPersonIdentity', 'PhonePersonIdentity', 'LinkedinPersonIdentity')
+   - Common issue: A value appears as different types for the same person (e.g., a LinkedIn URL appearing as both 'linkedin' and 'phone' type)
+   - This often indicates source data has wrong values in wrong fields (email in phone field, phone in email field)
+   - Agent should verify that values match their declared type:
+     - Emails should contain '@' and '.'
+     - Phones should be mostly digits
+     - LinkedIn should be URLs or usernames
+   - If a value doesn't match its type, either fix the type classification or exclude the invalid record
+
+3. **Personal vs Corporate Classification**
+   - The `identity_type_type` field must be either 'personal' or 'corporate'
+   - Some CRMs have explicit fields for this (like `typeclientchecked` in Invenias) - use these when available
+   - For emails, use the `{{ is_personal_email() }}` macro to check domain
+   - Default logic: candidates/people from candidate tables are usually 'personal', company contacts are 'corporate'
+   - Agent should verify no NULL values exist for this field
+
+4. **Value Field Quality**
+   - The `value` field contains the actual identity (email address, phone number, LinkedIn URL, etc.)
+   - After normalization, values should be clean (no extra whitespace, no protocols for URLs)
+   - **CRITICAL**: Agent must distinguish between source data quality issues vs transformation issues:
+     - **Source data quality issues** (DO NOT FIX): Missing dots in emails, malformed values in source, wrong values in wrong fields
+     - **Transformation issues** (MUST FIX): Normalization removed valid characters, transformation corrupted valid source data, macros broke valid values
+   - Agent should spot-check by comparing source data vs transformed data:
+     - If source had valid email `john@example.com` but transformed has `john@examplecom` → FIX transformation
+     - If source had invalid email `john@examplecom` → DO NOT FIX, this is source data quality
+   - Common transformation issues to check:
+     - Normalization removed dots that were present in source
+     - Phone normalization removed valid characters
+     - LinkedIn normalization broke valid URLs
+
+5. **Deduplication Verification**
+   - Templates handle deduplication automatically using priority system (candidate data = priority 1, contact data = priority 2)
+   - Deduplication happens by normalized value (LOWER(value)) - templates use ROW_NUMBER() with PARTITION BY LOWER(value) ORDER BY priority
+   - Agent should VERIFY that deduplication worked correctly - check that no duplicate values exist for the same person after migration
+   - If duplicates are found, the template's deduplication logic may need adjustment (check if partitioning key is correct)
+
+6. **Row Count Differences**
+   - Migration may have different row counts than expected due to:
+     - Stricter filtering (NULL checks, validation)
+     - Different deduplication logic
+     - Missing source records
+   - Agent should compare row counts with source data - reasonable variance is ±5-10%
+   - If variance is > 10%, investigate what's causing the difference
+
+7. **Multiple Identity Sources Verification**
+   - Some CRMs have identities in multiple tables (candidate_data, contact_data, etc.)
+   - Templates combine these with UNION ALL and apply priority-based deduplication automatically
+   - Agent should verify all expected sources are included in the final output
+   - Check that data from both candidate and contact tables appears (if applicable for this CRM)
+
+8. **Multiple Values in Single Field (Delimiter-Separated)**
+   - Source data may have multiple emails or phone numbers in a single field, separated by delimiters (comma `,`, slash `/`, semicolon `;`, pipe `|`, etc.)
+   - Examples: `email1@example.com, email2@example.com` or `+1234567890 / +0987654321`
+   - **CRITICAL**: These MUST be split into separate identity records (one per email/phone)
+   - Agent should check source data for fields containing delimiters:
+     - Query source table to find fields with commas, slashes, semicolons, pipes: `SELECT * FROM source_table WHERE email LIKE '%,%' OR phone LIKE '%/%'`
+     - If found, verify that the transformation splits them correctly
+   - If source has `email1@example.com, email2@example.com` but transformed only has one record → MUST FIX transformation to split them
+   - Common delimiters to check for: `,` `;` `/` `|` `\n` (newline) `\t` (tab)
+   - **Transformation pattern**: Use `SPLIT_PART()` with a numbers table or `regexp_split_to_table()` to split values
+     - Example pattern: `SPLIT_PART(REPLACE(REPLACE(email, ';', ','), ',,', ','), ',', numbers.n)` where numbers is a CTE with sequential numbers
+     - Or use: `unnest(regexp_split_to_array(email, '[,\\|;/]'))` to split on multiple delimiters
+   - After splitting, each value should be normalized individually using the appropriate macro (`{{ email_norm() }}`, `{{ phone_norm() }}`)
+   - Agent should verify: if source has 100 people with comma-separated emails, transformed should have more than 100 email identities (assuming some people have multiple emails)
+
+## What the Agent Should Check
+
+1. Verify emails look like emails (contain '@' and '.') - compare with source to determine if invalid emails are from source or transformation
+2. Verify phones look like phones (mostly digits, may have '+' prefix) - check if transformation corrupted valid source phones
+3. Verify LinkedIn values look like LinkedIn (URLs or usernames, not emails or phones) - ensure normalization didn't break valid URLs
+4. Check for type/class_type mismatches - these should never happen if template is correct
+5. Verify no duplicate values per person after deduplication
+6. Check that identity_type_type is set (not NULL) and is either 'personal' or 'corporate'
+7. Compare row counts with source - investigate if significant difference (>10%)
+8. **Check for multiple values in single fields**: Query source data to find emails/phones containing delimiters
+   - Example query: `SELECT * FROM source_table WHERE email LIKE '%,%' OR email LIKE '%/%' OR email LIKE '%;%' OR phone LIKE '%,%' OR phone LIKE '%/%'`
+   - If found, verify transformation splits them into separate records
+   - If source has `email1@example.com, email2@example.com` but only one identity record exists → FIX transformation
+   - Check row counts: if source has delimiter-separated values, transformed should have more identity records than source has people
+9. **Spot-check by comparing source vs transformed**: Sample a few records and verify transformation didn't corrupt valid source data
+   - If source had valid data but transformed doesn't → FIX transformation
+   - If source had invalid data → DO NOT FIX, document as source data quality issue
+
+## Common Patterns
+
+- **RecruitCRM**: Has candidate_data and contact_data - uses priority system (candidate=1, contact=2)
+- **Bullhorn**: Separate email/phone fields in people table - creates separate CTEs for each
+- **Invenias**: Has typeclientchecked field for corporate/personal distinction
+- **FileFinder**: Has Person_EAddress table with communication types
+
+## Notes
+
+- Templates handle all implementation (normalization, deduplication, UUID generation, priority system)
+- Agent's main job is to VERIFY the results are correct and fix issues if found
+- **IMPORTANT**: Agent must distinguish between source data quality issues (don't fix) vs transformation bugs (must fix)
+- Only fix values if the transformation process corrupted valid source data
+- If source data is poor quality, document it but don't try to fix it in the transformation
+- **Multiple values in single field**: If source has delimiter-separated values (e.g., `email1, email2`), transformation MUST split them - this is a transformation requirement, not optional
+- If verification reveals transformation problems, agent may need to adjust the client-specific model (not the template)
+- If source data quality is poor (wrong values in wrong fields), some records may need to be excluded
+- Type mismatches (21% of rows in some migrations) are often due to source data issues, not template problems
