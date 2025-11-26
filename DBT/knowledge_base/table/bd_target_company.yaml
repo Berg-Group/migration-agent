@@ -1,0 +1,10 @@
+This table looks after the companies inside an opportunity. 
+
+Columns required
+1. created_at /updated_at (make them the same)
+2. company_id
+3. atlas_company_id
+4. atlas_opportunity_id
+
+
+

@@ -1,0 +1,28 @@
+Opportunities is a holding table which manages a collection of objects
+People - opportunity_people
+Companies - target_companies
+Leads - opportunity_leads
+For speculative candidates, the type is speculative and speculative_person_id is the person being marketed
+
+We only need to migrate OPEN BD opportunities, old lost BD opportunities are not useful
+
+Columns required
+1. created_at /updated_at (make them the same)
+2. name (open text)
+3. type (regular, unless it is speculative)
+4. atlas_created_by_id = var($master_id)
+5. stage_id must come from the id from opportunity_stages
+6. atlas_speculative_person_id (null unless type = speculative, then it needs a person_id)
+7. owner_id
+8. atlas_owner_id
+9. manual_named = true
+11. atlas_id
+
+rejection (for info only)
+rejection_reason (make this cancelled)
+rejected_by_id ( make this var($master_id))
+rejected_at (take from source data)
+
+
+
+

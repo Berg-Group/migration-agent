@@ -374,4 +374,45 @@ tables:
     iso_timestamp: [created_at]
     unique: [atlas_id,id]
     uuid_columns: [atlas_id,atlas_project_id,atlas_candidate_id,atlas_project_fee_id]
+
+  opportunities*:
+    required: [atlas_id, created_at, updated_at, name, type, atlas_created_by_id, stage_id, owner_id, atlas_owner_id, manual_named]
+    not_null: [id, atlas_id, created_at, updated_at, name, type, atlas_created_by_id, stage_id, owner_id, atlas_owner_id]
+    nice_to_have: [id, atlas_speculative_person_id, speculative_person_id, rejection_reason, rejected_by_id, rejected_at, atlas_rejected_by_id]
+    iso_timestamp: [created_at, updated_at, rejected_at]
+    uuid_columns: [atlas_id, atlas_created_by_id, atlas_owner_id, atlas_speculative_person_id, atlas_rejected_by_id]
+    unique: [id, atlas_id]
+    isBoolean:
+      - manual_named
+    allowed_values:
+      type: ["regular", "speculative"]
+      rejection_reason: ["cancelled", "converted"]
+    constant:
+      manual_named: true
+
+  target_companies*:
+    required: [atlas_id, created_at, updated_at, company_id, atlas_company_id, opportunity_id, atlas_opportunity_id]
+    not_null: [id, atlas_id, created_at, updated_at, company_id, atlas_company_id, opportunity_id, atlas_opportunity_id]
+    nice_to_have: [id]
+    iso_timestamp: [created_at, updated_at]
+    uuid_columns: [atlas_id, atlas_company_id, atlas_opportunity_id]
+    unique: [id, atlas_id]
+
+  opportunity_stages*:
+    required: [id, atlas_id, created_by_id, atlas_created_by_id, name, position, type]
+    not_null: [id, atlas_id, created_by_id, atlas_created_by_id, name, position, type]
+    nice_to_have: [created_at, updated_at]
+    uuid_columns: [atlas_id, atlas_created_by_id]
+    unique: [id, atlas_id, name, position]
+    numeric: [position]
+    constant:
+      type: "default_stage"
+
+  opportunity_people*:
+    required: [atlas_id, created_at, updated_at, person_id, atlas_person_id, atlas_opportunity_id, created_by_id, atlas_created_by_id]
+    not_null: [id, atlas_id, created_at, updated_at, person_id, atlas_person_id, atlas_opportunity_id, created_by_id, atlas_created_by_id]
+    nice_to_have: [id, opportunity_id]
+    iso_timestamp: [created_at, updated_at]
+    uuid_columns: [atlas_id, atlas_person_id, atlas_opportunity_id, atlas_created_by_id]
+    unique: [id, atlas_id]
     

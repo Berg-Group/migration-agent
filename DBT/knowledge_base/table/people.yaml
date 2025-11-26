@@ -1,5 +1,4 @@
 #Locations
-
 Location
 Location is one of the most complex parts of a migration because source data is often poor
 1. Rarely, the entire coluns might be missing for a clients DB, in that case they aren't recoverable so adjust the script
@@ -12,3 +11,6 @@ Location is one of the most complex parts of a migration because source data is 
     **"location_country"** = United Kingdom
 4. We would much prefer to use the the specific data if available, with location_locality as a fall back
 5. If data is horrible (IE different types of data in the same column, eg London, Belgium, 23 Roman Road) the data is not usable unless we pick the single column with most coverage and use location locality
+
+Headline
+1. The headline information usually comes from the experience table. It is the experience which is current (null finished_at or equivakent) and if there is more than one, it is the one with the max start date

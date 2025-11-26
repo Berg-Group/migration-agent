@@ -1,0 +1,18 @@
+This table creates the stages used for opportunities.
+
+By default, the system creates the following
+position,name,type
+1,identitied,default_stage
+2,Purusing,default_stage
+3,initial_request,default_stage
+4,late_stage,default_stage
+5,converted,converted
+created_by_id should be the master_id
+
+Columns required
+1. id
+2. atlas_id
+3. created_by_id = var($master_id)
+4. name
+5. position (integer)
+6. type = default_stage
