@@ -1,0 +1,104 @@
+# Company Notes
+
+Company Notes store notes and comments associated with companies. Similar to people notes, common issues include missing user references and HTML content conversion.
+
+## CRITICAL: User Mapping Required Before Processing
+
+**BEFORE running the company_notes transformation, Agent MUST prompt the user for user mapping:**
+
+"Before processing company notes, I need to confirm the user mapping strategy. The notes table has created_by and updated_by fields that need to map to atlas user IDs. 
+
+Current situation:
+- Source has user_id values in created_by/updated_by fields
+- These need to map to atlas user IDs via user_mapping table
+
+How should I handle unmapped user references?
+1. Use master_id for all unmapped users (default template behavior)
+2. Create a custom mapping file for specific users
+3. Exclude notes with unmapped users
+4. Other (please specify)
+
+Please provide guidance on the preferred approach."
+
+**Agent must wait for user response before proceeding with the transformation.**
+
+## Key Issues to Check
+
+1. **Row Count Differences and Company Linking**
+   - **CRITICAL**: Only notes with valid company_id that can be linked to the companies table are migrated
+   - Notes without a valid company_id or with company_id that doesn't exist in companies table are excluded (this is expected behavior)
+   - Row counts may differ between source and transformed data
+   - Common causes: filtering logic (invalid company_id), user mapping failures
+   - Agent should investigate if row count difference is > 10%:
+     - Check if notes are excluded due to invalid company_id (expected)
+     - Verify user mapping is working (created_by, updated_by)
+     - Check if company_id references are valid
+   - **CRITICAL DISTINCTION**:
+     - If source has notes with invalid company_id (non-existent company) → Document but DO NOT FIX (expected filtering - these notes are intentionally excluded)
+     - If source has notes with valid company_id but transformation excluded them → MUST FIX (transformation bug - join failed)
+
+2. **User References (created_by, updated_by)**
+   - `created_by_atlas_id` and `updated_by_atlas_id` should reference valid users
+   - Templates map source user IDs to atlas user IDs using user_mapping table
+   - **Note**: User mapping strategy should have been confirmed at the start (see CRITICAL section above)
+   - Agent should verify:
+     - If source has user_id but transformed has NULL → Check user mapping logic matches the confirmed strategy
+     - If source has invalid user_id (non-existent user) → Document but DO NOT FIX (source data quality)
+   - NULL values are acceptable if source doesn't have user information or if user mapping strategy excludes them
+
+3. **Company References (CRITICAL)**
+   - **ONLY notes with valid company_id that exists in companies table are migrated**
+   - `atlas_company_id` must reference a valid company in the companies table
+   - Templates use INNER JOIN or filter WHERE atlas_company_id IS NOT NULL to ensure only linked notes are included
+   - If source has valid company_id but transformed has NULL → FIX transformation (join failed)
+   - If source has invalid company_id (non-existent company) → Notes are correctly excluded (expected behavior, do not fix)
+   - Agent should verify:
+     - All migrated notes have valid atlas_company_id (no NULLs)
+     - Notes with invalid company_id are excluded (this is correct)
+
+4. **HTML Content Conversion**
+   - Note content may contain HTML - templates use `{{ html_to_markdown() }}` or `{{ clean_html() }}` macro to convert
+   - Agent should verify HTML is properly converted to markdown/text
+   - If source has HTML but transformed still has HTML tags → FIX transformation
+   - NULL content is acceptable if source doesn't have note text
+
+5. **Agency ID**
+   - The `agency_id` field should be populated from `{{ var('agency_id') }}` in templates
+   - If source has agency_id but transformed has NULL/empty → Check if agency_id variable is set correctly
+   - This is usually a configuration issue, not a transformation bug
+
+## What the Agent Should Check
+
+1. **Verify company linking**: Check that only notes with valid company_id are migrated
+   - Query source to count notes with valid company_id vs total notes
+   - Verify transformed data only includes notes where atlas_company_id is NOT NULL
+   - Notes without valid company_id should be excluded (expected behavior)
+2. Compare row counts with source - investigate if significant difference (>10%)
+   - If difference is due to invalid company_id → This is expected, document it
+   - If difference is due to other reasons → Investigate further
+3. Verify all atlas_company_id values exist in companies table (all migrated notes should have valid references)
+3. **Verify user mapping was applied correctly**: Check that created_by_atlas_id/updated_by_atlas_id match the user mapping strategy confirmed at the start
+4. Verify HTML content is converted to markdown/text (if applicable)
+5. Check agency_id is populated (if configured)
+6. Verify no NULL values in required fields (atlas_company_id, atlas_id)
+7. **Spot-check by comparing source vs transformed**: Sample a few records and verify transformation didn't lose valid notes
+   - If source had valid note with valid company_id but transformed doesn't → FIX transformation (join failed)
+   - If source had note with invalid company_id → DO NOT FIX, document as expected filtering (notes without valid company_id are intentionally excluded)
+
+## Common Patterns
+
+- **RecruitCRM**: Has notes in note_data table linked to companies
+- **Bullhorn**: May have notes in separate notes table with different structure
+- **Invenias**: May have note types or visibility flags
+- **FileFinder**: May have notes linked to different entities
+
+## Notes
+
+- Templates handle HTML conversion, user mapping, and filtering automatically
+- Agent's main job is to VERIFY the results are correct and fix issues if found
+- **IMPORTANT**: Agent must distinguish between source data quality issues (don't fix) vs transformation bugs (must fix)
+- Only fix values if the transformation process lost valid data
+- If source data has invalid references or should be filtered, document it but don't try to fix it in the transformation
+- Row count differences may be acceptable if filtering is intentional (e.g., excluding system notes)
+- If verification reveals transformation problems, agent may need to adjust the client-specific model (not the template)
+

@@ -33,31 +33,53 @@ Cursor is responsible for driving the migration workflow end-to-end for each cli
 For each model file in DBT/models/clients/<client_name>:
 
 - Move execution context to the DBT directory.
-- Ensure environment variables from the parent .env are loaded (using the project’s standard method).
+- Ensure environment variables from the parent .env are loaded (using the project's standard method).
 - Ensure target_schema is set according to migration_config.yml.
 - Execute DBT for this single model only, using the clients.<client_name>.<model_name> selection pattern.
 - Cursor should run these steps itself in the integrated terminal, without asking for approval, as long as all required information (paths, client_name, target_schema) is known.
 
-5. Immediate QA after each model
+5. Knowledge Base Validation (REQUIRED for all tables)
+- After each successful DBT model run, BEFORE running QA, Cursor MUST:
+  - Extract the table name from the model filename (e.g., 3_people_rcrm → "people", 4_person_identities_rcrm → "person_identities")
+  - Check if a knowledge base file exists: DBT/knowledge_base/table/<table_name>.yaml
+  - If the knowledge base file exists, Cursor MUST:
+    - Read and understand all points listed in the "Key Issues to Check" section
+    - Read and understand all points in the "What the Agent Should Check" section
+    - Execute SQL queries or data inspections to verify each point is addressed
+    - **CRITICAL DISTINCTION**: When verifying data quality issues, Cursor MUST compare source data vs transformed data to determine:
+      - If source data has quality issues (missing dots, malformed values) → Document but DO NOT FIX (this is source data quality)
+      - If transformation corrupted valid source data → MUST FIX (this is a transformation bug)
+    - **Delimiter-Separated Values**: If source data has multiple values in a single field (e.g., `email1@example.com, email2@example.com`), transformation MUST split them into separate records - this is a transformation requirement, not optional
+    - Document findings and fix ONLY transformation bugs before proceeding to QA
+    - Do not attempt to fix source data quality issues - these should be documented as acceptable/expected
+  - **REQUIRED WORKFLOW**: If transformation bugs are found that require model changes:
+    - Fix the model
+    - Rerun DBT
+    - Re-check knowledge base points
+    - Only proceed to QA after all knowledge base checks pass or are documented as acceptable (source quality issues are acceptable)
+- This step is MANDATORY and applies to ALL tables that have knowledge base files
+- Cursor must not skip this step even if QA would catch some issues - knowledge base checks are table-specific validations that may catch issues QA doesn't
+
+6. Immediate QA after each model
 - After each successful model run, immediately run the QA Suite for the relevant table prefix.
 - The table prefix is usually the part of the model filename before the CRM suffix (for example: 3_people_rcrm → “people”).
 - Verify QA output before moving to the next model.
 - Cursor should run the QA command(s) itself using the established QA Suite mechanism.
 
-6. Loop until clean
+7. Loop until clean
 - If QA fails: inspect the error, identify the responsible DBT model, adjust only the necessary logic in the client model, rerun the model, then rerun the corresponding QA group.
 - Repeat this fix → rerun model → rerun QA loop until QA passes for that model.
 - Proceed to the next model only when QA for the current one is clean.
 - When all client models have passed their QA checks, run the full QA Suite sweep once more to confirm everything passes together.
 
-7. Guardrails
+8. Guardrails
 - Do not modify template SQL files; only use them as a source to copy into client-specific folders.
 - Ensure dbt_project.yml and profiles.yml remain aligned with migration_config.yml (source_schema, client_name, etc.).
 - Always ensure environment variables are loaded from the parent .env before running DBT or QA.
 - When DBT reports duplicate models, confirm that only client-specific models under clients.<client_name> are being selected.
 - When fallback or default values are needed, use master_id and other values from migration_config.yml rather than introducing hardcoded constants.
 
-8. Automation behaviour
+9. Automation behaviour
 - Cursor should run DBT models and QA checks automatically in the integrated terminal when the workflow requires it.
 - Cursor should not ask for permission before running these commands.
 - Cursor must pause and ask the user only when:

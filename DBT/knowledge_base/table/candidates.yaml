@@ -1,0 +1,114 @@
+# Candidates
+
+Candidates link people to projects with a status field indicating their stage in the recruitment process. Common issues include status mapping differences, missing user references, and project/person linking.
+
+## CRITICAL: Status Mapping Required Before Processing
+
+**BEFORE running the candidates transformation, Agent MUST prompt the user for status mapping:**
+
+"Before processing candidates, I need to confirm the candidate status mapping strategy. The candidates table has a status field that maps source candidate_status values to target status values.
+
+Current situation:
+- Source has candidate_status values (e.g., 'Assigned', 'Rejected', 'Applied', 'CV Sent', 'Shortlist', '1st round Interview', 'Placed', etc.)
+- These need to map to target status values: 'Added', 'Presented', 'Client IV', 'Offer', 'Placed'
+
+The template currently maps:
+- 'Assigned', 'Rejected', 'Applied', 'Long List/ Targets' → 'Added'
+- 'CV Sent', 'Shortlist' → 'Presented'
+- '1st round Interview', '2nd Round Interview', '3rd Round Interview', 'Final Interview' → 'Client IV'
+- 'Did Not Join' → 'Offer'
+- 'Placed' → 'Placed'
+
+Do you want to:
+1. Use the default template mapping (as described above)
+2. Customize the status mapping for specific values
+3. Review source data and create custom mapping
+4. Other (please specify)
+
+Please provide guidance on the preferred status mapping approach."
+
+**Agent must wait for user response before proceeding with the transformation.**
+
+## Key Issues to Check
+
+1. **Status Mapping**
+   - Candidates have a `status` field that indicates their stage in the recruitment process
+   - **Note**: Status mapping strategy should have been confirmed at the start (see CRITICAL section above)
+   - Templates map source candidate_status values to target status values based on the confirmed mapping strategy
+   - Agent should verify status values match the confirmed mapping strategy
+   - If source has status="X" but transformed has status="Y" and mapping doesn't match confirmed strategy → FIX transformation
+   - **CRITICAL DISTINCTION**:
+     - If source has invalid status values → Document but DO NOT FIX (source data quality)
+     - If transformation mapped valid status incorrectly (doesn't match confirmed strategy) → MUST FIX (transformation bug)
+
+2. **User References (owner)**
+   - `atlas_owner_id` should reference a valid user
+   - Templates map source owner_id to atlas user IDs using user_mapping table
+   - **Common Issue**: If user mapping fails, this field may be NULL
+   - Agent should verify:
+     - If source has owner_id but transformed has NULL → Check user mapping logic
+     - If source has invalid owner_id (non-existent user) → Document but DO NOT FIX (source data quality)
+   - NULL values are acceptable if source doesn't have owner information
+
+3. **Person References**
+   - `atlas_person_id` must reference a valid person in the people table
+   - If source has person_id but transformed has NULL → FIX transformation (join failed)
+   - Agent should verify all candidates have valid person references
+   - Candidates with invalid person_id may be filtered out (this is acceptable)
+
+4. **Project References**
+   - `atlas_project_id` must reference a valid project in the projects table
+   - If source has project_id but transformed has NULL → FIX transformation (join failed)
+   - Agent should verify all candidates have valid project references
+   - Candidates with invalid project_id may be filtered out (this is acceptable)
+
+5. **Date Fields**
+   - Candidates have `created_at` and `updated_at` fields
+   - Templates convert epoch timestamps to ISO-8601 format
+   - Agent should verify dates are in correct format: `YYYY-MM-DDTHH:MM:SS` or `YYYY-MM-DDT00:00:00`
+   - If source has valid date but transformed has NULL or invalid format → FIX transformation
+   - NULL dates are acceptable if source doesn't have date information
+
+6. **Row Count Verification**
+   - Compare row counts with source data - should match exactly or have minimal variance (±1-2%)
+   - If variance is > 2%, investigate:
+     - Missing source records
+     - Join failures (invalid person_id or project_id)
+     - Filtering logic differences
+   - Some CRMs may filter out certain candidate statuses
+
+7. **Required Fields**
+   - Candidates typically require: `atlas_person_id`, `atlas_project_id`, `status`, `atlas_id`
+   - Agent should verify no NULL values in required fields
+   - If source has data but transformed has NULLs → FIX transformation
+
+## What the Agent Should Check
+
+1. **Verify status mapping was applied correctly**: Check that status values match the mapping strategy confirmed at the start
+2. Verify all atlas_person_id values exist in people table
+3. Verify all atlas_project_id values exist in projects table
+4. Check atlas_owner_id - if source has owner_id but transformed has NULL → Check user mapping
+5. Verify date fields are in correct format (ISO-8601)
+6. Verify no NULL values in required fields (atlas_person_id, atlas_project_id, status, atlas_id)
+7. Compare row counts with source - investigate if significant difference (>2%)
+8. **Spot-check by comparing source vs transformed**: Sample a few records and verify transformation didn't lose valid data
+   - If source had valid data but transformed doesn't → FIX transformation
+   - If source had invalid data → DO NOT FIX, document as source data quality issue
+
+## Common Patterns
+
+- **RecruitCRM**: Has candidates in assignment_data table linked to candidate_data and job_data
+- **Bullhorn**: May have candidates with different status fields and mappings
+- **Invenias**: May have candidates linked differently
+- **FileFinder**: May have candidates in separate tables
+
+## Notes
+
+- Templates handle status mapping, user mapping, date conversion, and joins automatically
+- Agent's main job is to VERIFY the results are correct and fix issues if found
+- **IMPORTANT**: Agent must distinguish between source data quality issues (don't fix) vs transformation bugs (must fix)
+- Only fix values if the transformation process lost valid data or mapped incorrectly
+- If source data has invalid references or status values, document it but don't try to fix it in the transformation
+- Status mapping differences may indicate template updates or source data changes - verify which is correct
+- If verification reveals transformation problems, agent may need to adjust the client-specific model (not the template)
+

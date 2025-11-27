@@ -1,0 +1,104 @@
+# Company Identities
+
+Company Identities are simpler than person identities but still have issues with type classification, primary identity selection, and URL normalization.
+
+## Key Issues to Check
+
+1. **Primary Identity Selection (is_primary)**
+   - Templates mark website identities as `is_primary = TRUE` and LinkedIn identities as `is_primary = FALSE`
+   - If a company has both website and LinkedIn, website should be primary
+   - **Common Issue**: Primary selection may differ if source data has multiple identities or if deduplication logic changes which identity is selected
+   - Agent should verify that companies with both website and LinkedIn have website marked as primary
+   - If source has website but transformed has LinkedIn as primary → FIX transformation
+   - **CRITICAL DISTINCTION**:
+     - If source has no website but has LinkedIn → LinkedIn can be primary (this is acceptable)
+     - If source has website but transformed marks LinkedIn as primary → FIX transformation
+
+2. **Type Classification**
+   - Company identities have two types: `website` and `linkedin`
+   - Templates extract website from `website` field and LinkedIn from `profile_linkedin` field
+   - **Common Issue**: Type mismatches occur when the wrong identity is selected as primary (website vs linkedin)
+   - Agent should verify that `type` field matches the actual value:
+     - Website values should be domain names (e.g., `example.com`, `company.co.uk`)
+     - LinkedIn values should contain `linkedin.com` in the path
+   - If source has website but transformed has type='linkedin' → FIX transformation
+
+3. **URL Normalization**
+   - Templates normalize URLs by removing protocols (`http://`, `https://`), `www.` prefix, and trailing slashes
+   - Example: `https://www.example.com/` → `example.com`
+   - **CRITICAL DISTINCTION**:
+     - If source has malformed URLs (missing protocols, wrong format) → Document but DO NOT FIX (source data quality)
+     - If transformation corrupted valid URLs (removed valid parts, broke domain names) → MUST FIX (transformation bug)
+   - Agent should verify normalized URLs are clean domain names without protocols or www
+   - If source had valid URL `https://example.com` but transformed has `examplecom` (missing dot) → FIX transformation
+
+4. **Value and Original_URL Consistency**
+   - Both `value` and `original_url` should contain the normalized URL (they're the same in templates)
+   - If they differ, this may indicate a transformation issue
+   - Agent should verify they match for all records
+
+5. **Deduplication Verification**
+   - Templates deduplicate by normalized value using `ROW_NUMBER() OVER (PARTITION BY normalized_value ORDER BY created_on)`
+   - Only the first identity (by creation date) is kept for each unique normalized value
+   - Agent should verify no duplicate normalized values exist for the same company
+   - If duplicates are found, check the deduplication logic
+
+6. **Agency ID**
+   - The `agency_id` field should be populated from `{{ var('agency_id') }}` in templates
+   - If source has agency_id but transformed has NULL/empty → Check if agency_id variable is set correctly
+   - This is usually a configuration issue, not a transformation bug
+
+7. **Row Count Verification**
+   - Compare row counts with source data - reasonable variance is ±5-10%
+   - If variance is > 10%, investigate:
+     - Filtering logic (NULL/empty checks)
+     - Missing source records
+     - Deduplication differences
+   - Some companies may have both website and LinkedIn, so row count may be higher than company count
+
+8. **Multiple Values in Single Field (Delimiter-Separated)**
+   - Source data may have multiple URLs in a single field, separated by delimiters (comma `,`, slash `/`, semicolon `;`, pipe `|`, etc.)
+   - Examples: `example.com, example2.com` or `linkedin.com/company/abc / linkedin.com/company/xyz`
+   - **CRITICAL**: These MUST be split into separate identity records (one per URL)
+   - Agent should check source data for fields containing delimiters:
+     - Query source table to find fields with commas, slashes, semicolons, pipes: `SELECT * FROM source_table WHERE website LIKE '%,%' OR profile_linkedin LIKE '%/%'`
+     - If found, verify that the transformation splits them correctly
+   - If source has `example.com, example2.com` but transformed only has one record → MUST FIX transformation to split them
+   - Common delimiters to check for: `,` `;` `/` `|` `\n` (newline) `\t` (tab)
+   - **Transformation pattern**: Use `SPLIT_PART()` with a numbers table or `regexp_split_to_table()` to split values
+   - After splitting, each value should be normalized individually
+
+## What the Agent Should Check
+
+1. Verify is_primary is set correctly: website identities should be primary when both website and LinkedIn exist
+2. Check type field matches the actual value (website vs linkedin)
+3. Verify URL normalization worked correctly - no protocols, no www, no trailing slashes
+4. Check value and original_url match for all records
+5. Verify no duplicate normalized values exist for the same company
+6. Check agency_id is populated (if configured)
+7. Compare row counts with source - investigate if significant difference (>10%)
+8. **Check for multiple values in single fields**: Query source data to find URLs containing delimiters
+   - Example query: `SELECT * FROM source_table WHERE website LIKE '%,%' OR website LIKE '%/%' OR profile_linkedin LIKE '%,%' OR profile_linkedin LIKE '%/%'`
+   - If found, verify transformation splits them into separate records
+   - If source has delimiter-separated values but only one identity record exists → FIX transformation
+9. **Spot-check by comparing source vs transformed**: Sample a few records and verify transformation didn't corrupt valid source data
+   - If source had valid data but transformed doesn't → FIX transformation
+   - If source had invalid data → DO NOT FIX, document as source data quality issue
+
+## Common Patterns
+
+- **RecruitCRM**: Has `website` and `profile_linkedin` fields in company_data table
+- **Bullhorn**: May have different field names for company websites and LinkedIn profiles
+- **Invenias**: May have company URLs in different fields
+- **FileFinder**: May have company contact information in separate tables
+
+## Notes
+
+- Templates handle URL normalization, deduplication, and primary selection automatically
+- Agent's main job is to VERIFY the results are correct and fix issues if found
+- **IMPORTANT**: Agent must distinguish between source data quality issues (don't fix) vs transformation bugs (must fix)
+- Only fix values if the transformation process corrupted valid source data
+- If source data is poor quality, document it but don't try to fix it in the transformation
+- **Multiple values in single field**: If source has delimiter-separated values (e.g., `url1, url2`), transformation MUST split them - this is a transformation requirement, not optional
+- If verification reveals transformation problems, agent may need to adjust the client-specific model (not the template)
+

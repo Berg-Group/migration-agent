@@ -1,0 +1,90 @@
+# Educations
+
+Educations are parsed from concatenated source data and linked to people. Key issues include degree/qualification parsing, date parsing, and data quality from source concatenation.
+
+## Key Issues to Check
+
+1. **Degree and Field of Study Parsing**
+   - `degree` field contains educational qualification (e.g., "BSc", "MSc", "Ph.D.")
+   - `field_of_study` field contains specialization/major (e.g., "Mechanical Engineering", "Business Administration")
+   - Source data may have these concatenated or in different formats
+   - **Common Issue**: Degree and field_of_study may be parsed incorrectly from concatenated source
+   - Agent should verify:
+     - Degrees are reasonable (standard abbreviations or full names)
+     - Field of study matches the degree level
+   - **CRITICAL DISTINCTION**:
+     - If source has poor quality degree/field data → Document but DO NOT FIX (source data quality)
+     - If transformation corrupted valid degree/field data → MUST FIX (transformation bug)
+
+2. **Institution Name (name field)**
+   - `name` field contains the educational institution name
+   - Source data may have institution names in different formats
+   - Agent should verify institution names are reasonable (not empty, not placeholder text)
+   - If source has valid institution name but transformed has NULL → FIX transformation
+   - **CRITICAL DISTINCTION**:
+     - If source has poor quality institution names → Document but DO NOT FIX (source data quality)
+     - If transformation corrupted valid institution names → MUST FIX (transformation bug)
+
+3. **Date Fields (started_at, finished_at)**
+   - Educations have start and end dates that are parsed from source
+   - **Common Issue**: Date parsing may differ if source has different date formats or missing dates
+   - Agent should verify dates are in correct format: `YYYY-MM-DD`
+   - If source has valid date but transformed has NULL or invalid format → FIX transformation
+   - NULL dates are acceptable if source doesn't have date information
+   - **Note**: Some educations may have only start date (in progress) or only end date (completed)
+
+4. **Description Field**
+   - `description` field may contain additional education details (activities, societies, honors)
+   - Source data may have this concatenated or formatted differently
+   - Agent should verify descriptions are clean (no excessive formatting, no concatenation artifacts)
+   - NULL description is acceptable if source doesn't have additional details
+
+5. **Person References**
+   - `atlas_person_id` must reference a valid person in the people table
+   - If source has person_id but transformed has NULL → FIX transformation (join failed)
+   - Agent should verify all educations have valid person references
+   - Educations with invalid person_id may be filtered out (this is acceptable)
+
+6. **Row Count Verification**
+   - Compare row counts with source data - reasonable variance is ±5-10%
+   - If variance is > 10%, investigate:
+     - Filtering logic (NULL checks, institution name validation)
+     - Missing source records
+     - Deduplication differences
+   - Source may have concatenated education data that needs to be split - verify all are included
+
+7. **Deduplication**
+   - Templates deduplicate educations based on person, institution, degree, and dates
+   - Agent should verify no exact duplicate educations exist for the same person
+   - If duplicates are found, check the deduplication logic
+
+## What the Agent Should Check
+
+1. Verify degree and field_of_study are parsed correctly - check if they match expected formats
+2. Verify institution names are reasonable and not corrupted
+3. Verify date fields are in correct format (YYYY-MM-DD) and reasonable (not future dates for finished_at unless in progress)
+4. Check description field quality - verify it's not corrupted by transformation
+5. Verify all atlas_person_id values exist in people table
+6. Compare row counts with source - investigate if significant difference (>10%)
+7. Check for duplicate educations for the same person
+8. **Spot-check by comparing source vs transformed**: Sample a few records and verify transformation didn't corrupt valid data
+   - If source had valid data but transformed doesn't → FIX transformation
+   - If source had invalid data → DO NOT FIX, document as source data quality issue
+
+## Common Patterns
+
+- **RecruitCRM**: Has concatenated education data that is split into individual records
+- **Bullhorn**: May have education in different structure
+- **Invenias**: May have educations linked differently
+- **FileFinder**: May have education in separate tables
+
+## Notes
+
+- Templates handle degree parsing, date parsing, and deduplication automatically
+- Agent's main job is to VERIFY the results are correct and fix issues if found
+- **IMPORTANT**: Agent must distinguish between source data quality issues (don't fix) vs transformation bugs (must fix)
+- Only fix values if the transformation process corrupted valid source data
+- If source data has poor quality (concatenated, malformed), document it but don't try to fix it in the transformation
+- Degree and field_of_study parsing differences are common - verify if it's a parsing issue vs source data quality
+- If verification reveals transformation problems, agent may need to adjust the client-specific model (not the template)
+

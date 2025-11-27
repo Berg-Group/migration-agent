@@ -1,0 +1,115 @@
+# Projects
+
+Projects (also known as jobs, opportunities, or placements) are complex entities with status mappings, date fields, and relationships to companies and people. Common issues include status/close_reason mapping differences, missing user references, and date field validation.
+
+## CRITICAL: Status Mapping Required Before Processing
+
+**BEFORE running the projects transformation, Agent MUST prompt the user for status/close_reason mapping:**
+
+"Before processing projects, I need to confirm the status and close_reason mapping strategy. The projects table has status fields that need to map to specific values (state, close_reason).
+
+Current situation:
+- Source has job_status values (e.g., 'Filled', 'Closed', 'On Hold', 'Lead/ Prospect')
+- These need to map to target values:
+  - state: 'active', 'on_hold', 'pitch', 'closed'
+  - close_reason: 'won', 'worked_lost', 'pitch_lost' (or NULL)
+
+The template currently maps:
+- 'Filled' → state='closed', close_reason='won'
+- 'Closed' → state='closed', close_reason='worked_lost'
+- 'On Hold' → state='on_hold', close_reason=NULL
+- 'Lead/ Prospect' → state='pitch', close_reason='pitch_lost' (if created before 2025-03-01)
+
+Do you want to:
+1. Use the default template mapping (as described above)
+2. Customize the status mapping for specific values
+3. Review and adjust the mapping logic
+4. Other (please specify)
+
+Please provide guidance on the preferred status mapping approach."
+
+**Agent must wait for user response before proceeding with the transformation.**
+
+## Key Issues to Check
+
+1. **Status and Close Reason Mapping**
+   - Projects have status fields (e.g., `state`, `close_reason`) that must map to specific values
+   - Templates map source job_status values to target state and close_reason values
+   - **Note**: Status mapping strategy should have been confirmed at the start (see CRITICAL section above)
+   - **Common Issue**: Status mapping may differ between migrations if source status values change or mapping logic is updated
+   - Agent should verify status and close_reason values match the confirmed mapping strategy
+   - If source has status="X" but transformed has status="Y" and mapping doesn't match confirmed strategy → FIX transformation
+   - **CRITICAL DISTINCTION**:
+     - If source has invalid status values → Document but DO NOT FIX (source data quality)
+     - If transformation mapped valid status incorrectly (doesn't match confirmed strategy) → MUST FIX (transformation bug)
+
+2. **User References (owner, created_by, updated_by)**
+   - `atlas_owner_id`, `created_by_id`, and `updated_by_id` should reference valid users
+   - Templates map source user IDs to atlas user IDs
+   - **Common Issue**: If user mapping fails, these fields may be NULL
+   - Agent should verify:
+     - If source has user_id but transformed has NULL → Check user mapping logic
+     - If source has invalid user_id (non-existent user) → Document but DO NOT FIX (source data quality)
+   - NULL values are acceptable if source doesn't have user information
+
+3. **Company References**
+   - `atlas_company_id` must reference a valid company in the companies table
+   - If source has company_id but transformed has NULL → FIX transformation (join failed)
+   - Agent should verify all projects have valid company references
+   - Projects with invalid company_id may be filtered out (this is acceptable)
+
+4. **Date Fields**
+   - Projects have multiple date fields: `created_at`, `updated_at`, `start_date`, `end_date`, `close_date`
+   - Templates convert epoch timestamps or date strings to ISO-8601 format
+   - Agent should verify dates are in correct format: `YYYY-MM-DDTHH:MM:SS` or `YYYY-MM-DDT00:00:00`
+   - If source has valid date but transformed has NULL or invalid format → FIX transformation
+   - NULL dates are acceptable if source doesn't have date information
+
+5. **Agency ID**
+   - The `agency_id` field should be populated from `{{ var('agency_id') }}` in templates
+   - If source has agency_id but transformed has NULL/empty → Check if agency_id variable is set correctly
+   - This is usually a configuration issue, not a transformation bug
+
+6. **Row Count Verification**
+   - Compare row counts with source data - should match exactly or have minimal variance (±1-2%)
+   - If variance is > 2%, investigate:
+     - Missing source records
+     - Join failures (invalid company_id)
+     - Filtering logic differences
+   - Some CRMs may filter out certain project types or statuses
+
+7. **Required Fields**
+   - Projects typically require: `name`, `atlas_company_id`, `atlas_id`
+   - Agent should verify no NULL values in required fields
+   - If source has data but transformed has NULLs → FIX transformation
+
+## What the Agent Should Check
+
+1. **Verify status mapping was applied correctly**: Check that state and close_reason values match the status mapping strategy confirmed at the start
+2. Verify all atlas_company_id values exist in companies table
+3. Check atlas_owner_id, created_by_id, updated_by_id - if source has user_id but transformed has NULL → Check user mapping
+4. Verify date fields are in correct format (ISO-8601)
+5. Check agency_id is populated (if configured)
+6. Verify no NULL values in required fields (name, atlas_company_id, atlas_id)
+7. Compare row counts with source - investigate if significant difference (>2%)
+8. **Spot-check by comparing source vs transformed**: Sample a few records and verify transformation didn't lose valid data
+   - If source had valid data but transformed doesn't → FIX transformation
+   - If source had invalid data → DO NOT FIX, document as source data quality issue
+
+## Common Patterns
+
+- **RecruitCRM**: Has projects in project_data table with status and close_reason fields
+- **Bullhorn**: May have jobs with different status fields and mappings
+- **Invenias**: May have opportunities with different structure
+- **FileFinder**: May have projects linked to different entities
+
+## Notes
+
+- Templates handle status mapping, user mapping, date conversion, and joins automatically
+- Agent's main job is to VERIFY the results are correct and fix issues if found
+- **IMPORTANT**: Agent must distinguish between source data quality issues (don't fix) vs transformation bugs (must fix)
+- Only fix values if the transformation process lost valid data or mapped incorrectly
+- If source data has invalid references or status values, document it but don't try to fix it in the transformation
+- Status mapping differences may indicate template updates or source data changes - verify which is correct
+- If verification reveals transformation problems, agent may need to adjust the client-specific model (not the template)
+

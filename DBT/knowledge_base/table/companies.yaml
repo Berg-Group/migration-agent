@@ -2,6 +2,27 @@
 
 Companies are a critical part of migrations and share many of the same location complexity issues as people, plus have specific fields like relationship and company_size that need validation.
 
+## CRITICAL: Relationship/Status Mapping Required Before Processing
+
+**BEFORE running the companies transformation, Agent MUST prompt the user for relationship/status mapping:**
+
+"Before processing companies, I need to confirm the relationship/status mapping strategy. The companies table has a relationship field that must be one of: 'none', 'target', or 'client'.
+
+Current situation:
+- Source may have status/type fields that need to map to relationship values
+- Templates typically map relationship to 'target' by default for RecruitCRM
+- Other CRMs may have status fields (e.g., 'active', 'archive', 'prospect') that need mapping
+
+How should I handle relationship mapping?
+1. Use default template mapping (e.g., 'target' for all companies, or CRM-specific defaults)
+2. Map based on source status/type fields (e.g., active → 'client', prospect → 'none', archive → 'none')
+3. Review source data and create custom mapping
+4. Other (please specify)
+
+Please provide guidance on the preferred relationship mapping approach."
+
+**Agent must wait for user response before proceeding with the transformation.**
+
 ## Key Issues to Check
 
 1. **Location Data Quality**
@@ -19,9 +40,12 @@ Companies are a critical part of migrations and share many of the same location 
 
 2. **Relationship Field Validation**
    - The `relationship` field MUST be one of: "none", "target", "client"
-   - Templates map source status/type fields to these values (e.g., "active" → "client", "prospect" → "none")
-   - Agent should verify no invalid values exist - check that all relationship values are in the allowed set
-   - If source has status values not mapped in template, agent may need to add mapping logic
+   - **Note**: Relationship mapping strategy should have been confirmed at the start (see CRITICAL section above)
+   - Templates map source status/type fields to these values based on the confirmed mapping strategy
+   - Agent should verify:
+     - No invalid values exist - all relationship values must be in the allowed set
+     - Relationship values match the confirmed mapping strategy
+   - If source has status values not mapped in the confirmed strategy → Agent may need to add mapping logic or prompt user
    - Default is usually "none" if source status doesn't match any mapping
 
 3. **Company Size Validation**
@@ -60,7 +84,8 @@ Companies are a critical part of migrations and share many of the same location 
 1. **Verify location fields are preserved**: Compare source vs transformed - if source has location_country, location_metro, location_name, location_region but transformed has NULL → FIX transformation
 2. **Check location_locality format**: Transformation may concatenate more details (e.g., "Manchester, Greater Manchester, United Kingdom") vs source (e.g., "Manchester") - verify this is intentional or fix if not
 3. Verify location_locality is populated when source has location data - compare source vs transformed
-4. Check that relationship field only contains "none", "target", or "client" - no invalid values
+4. **Verify relationship mapping was applied correctly**: Check that relationship values match the mapping strategy confirmed at the start
+   - All values must be "none", "target", or "client" - no invalid values
 5. Verify company_size values are in allowed set or NULL - check number_range macro worked correctly
 6. Check for NULL or empty company names - these should be filtered out
 7. Verify no duplicate company names exist (unless they're actually different companies)

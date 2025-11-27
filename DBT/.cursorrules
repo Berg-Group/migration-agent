@@ -39,6 +39,15 @@ This rule completely eliminates the broken-eval behaviour you keep seeing.
 - Cursor must always consult crm/ for CRM-wide behaviour.
 - Cursor must always consult table/ for table-level rules.
 - Cursor must combine crm/ + table/ knowledge when reasoning about any transformation or QA failure.
+- **CRITICAL**: After running each DBT model, Cursor MUST check if a knowledge base file exists for that table (DBT/knowledge_base/table/<table_name>.yaml).
+- If a knowledge base file exists, Cursor MUST verify all points in "Key Issues to Check" and "What the Agent Should Check" sections are addressed.
+- This validation must happen AFTER DBT model runs successfully but BEFORE running QA Suite.
+- **IMPORTANT**: When verifying issues, Cursor MUST compare source data vs transformed data to distinguish:
+  - Source data quality issues (malformed values in source) → Document but DO NOT FIX
+  - Transformation bugs (transformation corrupted valid source data) → MUST FIX
+- **Delimiter-Separated Values**: If source has multiple values in one field (comma/slash/semicolon separated), transformation MUST split them - this is a requirement, not optional
+- Cursor must fix ONLY transformation bugs found in knowledge base checks before proceeding to QA.
+- Source data quality issues should be documented as acceptable/expected and not fixed.
 
 3. DATA AND MODEL INVESTIGATION RULES
 - migration_config.yml is the single source of truth for client_name, source_crm, source_schema, target_schema, master_id.
@@ -172,4 +181,4 @@ This rule completely eliminates the broken-eval behaviour you keep seeing.
 - If DBT fails with environment variable errors, immediately check if .env was loaded correctly using `echo $REDSHIFT_HOST`.
 
 
-test
+

@@ -1,0 +1,61 @@
+# Company Contacts
+
+Company Contacts link people to companies, creating relationships between the two entities. This is typically a straightforward join table but needs verification of foreign key relationships.
+
+## Key Issues to Check
+
+1. **Foreign Key Relationships**
+   - `atlas_company_id` must reference a valid company in the companies table
+   - `atlas_person_id` must reference a valid person in the people table
+   - Agent should verify all company_contacts have valid company and person references
+   - If source has company_id/person_id but transformed has NULL atlas_company_id/atlas_person_id → FIX transformation (join failed)
+   - **CRITICAL DISTINCTION**:
+     - If source has invalid company_id/person_id (references non-existent records) → Document but DO NOT FIX (source data quality)
+     - If transformation lost valid foreign key relationships → MUST FIX (transformation bug)
+
+2. **Row Count Verification**
+   - Compare row counts with source data - should match exactly or have minimal variance (±1-2%)
+   - If variance is > 2%, investigate:
+     - Missing source records
+     - Join failures (invalid foreign keys)
+     - Filtering logic differences
+   - Some CRMs may have additional filtering (e.g., only active contacts)
+
+3. **Duplicate Relationships**
+   - A person should not have multiple identical company relationships (same company_id, same person_id)
+   - Templates should handle deduplication if source has duplicates
+   - Agent should verify no duplicate company-person pairs exist
+   - If duplicates are found, check if deduplication logic is needed
+
+4. **Data Completeness**
+   - All required fields should be populated (atlas_company_id, atlas_person_id, atlas_id)
+   - Agent should verify no NULL values in required fields
+   - If source has data but transformed has NULLs → FIX transformation
+
+## What the Agent Should Check
+
+1. Verify all atlas_company_id values exist in companies table
+2. Verify all atlas_person_id values exist in people table
+3. Check for NULL values in required fields (atlas_company_id, atlas_person_id, atlas_id)
+4. Verify no duplicate company-person pairs exist
+5. Compare row counts with source - investigate if significant difference (>2%)
+6. **Spot-check by comparing source vs transformed**: Sample a few records and verify transformation didn't lose valid relationships
+   - If source had valid company_id/person_id but transformed has NULL → FIX transformation
+   - If source had invalid references → DO NOT FIX, document as source data quality issue
+
+## Common Patterns
+
+- **RecruitCRM**: Links people to companies through contact relationships
+- **Bullhorn**: May have different relationship types or additional fields
+- **Invenias**: May have company contacts in separate tables
+- **FileFinder**: May have different join patterns
+
+## Notes
+
+- Templates handle joins and UUID generation automatically
+- Agent's main job is to VERIFY the relationships are correct and fix issues if found
+- **IMPORTANT**: Agent must distinguish between source data quality issues (don't fix) vs transformation bugs (must fix)
+- Only fix values if the transformation process lost valid relationships
+- If source data has invalid foreign keys, document it but don't try to fix it in the transformation
+- If verification reveals transformation problems, agent may need to adjust the client-specific model (not the template)
+

@@ -1,0 +1,84 @@
+# Experiences
+
+Experiences (work history) are parsed from concatenated source data and linked to people and companies. Key issues include company matching, date parsing, and data quality from source concatenation.
+
+## Key Issues to Check
+
+1. **Company Matching**
+   - Experiences have `company_id` and `company_name` fields that should link to companies table
+   - Templates attempt to match company names from source to companies table
+   - **Common Issue**: Company matching may fail if source company name doesn't exactly match companies table
+   - Agent should verify:
+     - If source has company name but transformed has NULL company_id → Check if company exists in companies table with different name
+     - If company matching is incorrect (wrong company linked) → May need to adjust matching logic
+   - **CRITICAL DISTINCTION**:
+     - If source has company name that doesn't exist in companies table → Document but DO NOT FIX (source data quality - company not migrated)
+     - If transformation failed to match valid company that exists in companies table → MUST FIX (transformation bug)
+
+2. **Date Fields (started_at, finished_at)**
+   - Experiences have start and end dates that are parsed from source
+   - **Common Issue**: Date parsing may differ if source has different date formats or missing dates
+   - Agent should verify dates are in correct format: `YYYY-MM-DD`
+   - If source has valid date but transformed has NULL or invalid format → FIX transformation
+   - NULL dates are acceptable if source doesn't have date information
+   - **Note**: Some experiences may have only start date (current job) or only end date (historical)
+
+3. **Title and Description Quality**
+   - `title` field contains job title/role
+   - `description` field contains job description/responsibilities
+   - Source data may be concatenated or have poor formatting
+   - Agent should verify:
+     - Titles are reasonable (not empty, not placeholder text)
+     - Descriptions are clean (no excessive formatting, no concatenation artifacts)
+   - **CRITICAL DISTINCTION**:
+     - If source has poor quality titles/descriptions → Document but DO NOT FIX (source data quality)
+     - If transformation corrupted valid titles/descriptions → MUST FIX (transformation bug)
+
+4. **Person References**
+   - `atlas_person_id` must reference a valid person in the people table
+   - If source has person_id but transformed has NULL → FIX transformation (join failed)
+   - Agent should verify all experiences have valid person references
+   - Experiences with invalid person_id may be filtered out (this is acceptable)
+
+5. **Row Count Verification**
+   - Compare row counts with source data - reasonable variance is ±5-10%
+   - If variance is > 10%, investigate:
+     - Filtering logic (NULL checks, date validation)
+     - Missing source records
+     - Deduplication differences
+   - Source may have multiple work history tables (work_history_1_data through work_history_6_data) - verify all are included
+
+6. **Deduplication**
+   - Templates deduplicate experiences based on person, dates, title, and company
+   - Agent should verify no exact duplicate experiences exist for the same person
+   - If duplicates are found, check the deduplication logic
+
+## What the Agent Should Check
+
+1. Verify company matching: Check if company_id is populated when source has company name
+2. Verify date fields are in correct format (YYYY-MM-DD) and reasonable (not future dates for finished_at)
+3. Check title and description quality - verify they're not corrupted by transformation
+4. Verify all atlas_person_id values exist in people table
+5. Compare row counts with source - investigate if significant difference (>10%)
+6. Check for duplicate experiences for the same person
+7. **Spot-check by comparing source vs transformed**: Sample a few records and verify transformation didn't corrupt valid data
+   - If source had valid data but transformed doesn't → FIX transformation
+   - If source had invalid data → DO NOT FIX, document as source data quality issue
+
+## Common Patterns
+
+- **RecruitCRM**: Has multiple work_history tables (1-6) that are unioned together
+- **Bullhorn**: May have work history in different structure
+- **Invenias**: May have experiences linked differently
+- **FileFinder**: May have work history in separate tables
+
+## Notes
+
+- Templates handle company matching, date parsing, and deduplication automatically
+- Agent's main job is to VERIFY the results are correct and fix issues if found
+- **IMPORTANT**: Agent must distinguish between source data quality issues (don't fix) vs transformation bugs (must fix)
+- Only fix values if the transformation process corrupted valid source data
+- If source data has poor quality (concatenated, malformed), document it but don't try to fix it in the transformation
+- Company matching failures are common - verify if it's a matching issue vs missing company in companies table
+- If verification reveals transformation problems, agent may need to adjust the client-specific model (not the template)
+
