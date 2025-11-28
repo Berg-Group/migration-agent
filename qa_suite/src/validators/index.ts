@@ -14,6 +14,7 @@ export * from './mustExist.js';
 export * from './consecutivePositions.js';
 export * from './candidateDuplicates.js';
 export * from './email.js';
+export * from './validEmail.js';
 export * from './currency.js';
 export * from './numeric.js';
 export * from './url.js';

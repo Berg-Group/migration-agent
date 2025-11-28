@@ -180,6 +180,9 @@ tables:
       - verified
     constant:                                # every row must equal value
       source: migration
+    # Note: valid_email validator can be used like this (commented out for now):
+    # valid_email: [value]  # Validates emails with comprehensive rules + blocks fake/disposable domains
+    # Note: This would validate ALL values, not just those where type='email'
  
   companies*:
     required: [atlas_id, name, relationship]
@@ -331,6 +334,7 @@ tables:
     uuid_columns: [atlas_id]
     unique: [id,atlas_id, email]
     email: [email]
+    valid_email: [email]  # Comprehensive email validation with built-in disallowed domains list
     allowed_values:
       status: ["active","disabled"]
       # Some DBs have No user emails but they are vital for us. So if email is null, we should create firstname.lastname@domain.com as a dummy. They can change it later

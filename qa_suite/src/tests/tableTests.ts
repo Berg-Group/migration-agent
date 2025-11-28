@@ -34,6 +34,7 @@ import {
   candidateDuplicates,
   // Import email validator
   email,
+  validEmail,
   // Import currency validator
   currency,
   // Import numeric validator
@@ -405,6 +406,18 @@ async function applyTableRules(
         cols,
         email,
         'contains invalid email addresses',
+        fails
+      );
+    }
+    
+    // Comprehensive email validation checks
+    if (rule.valid_email) {
+      await validateEach(
+        table,
+        rule.valid_email,
+        cols,
+        validEmail,
+        'contains emails that fail comprehensive validation',
         fails
       );
     }

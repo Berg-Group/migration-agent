@@ -27,8 +27,8 @@ Person Identities are one of the most complex parts of a migration because sourc
    - This often indicates source data has wrong values in wrong fields (email in phone field, phone in email field)
    - Agent should verify that values match their declared type:
      - Emails should contain '@' and '.'
-     - Phones should be mostly digits
-     - LinkedIn should be URLs or usernames
+     - Phones should be digits, + and brackets and ;
+     - LinkedIn should be URLs
    - If a value doesn't match its type, either fix the type classification or exclude the invalid record
 
 3. **Personal vs Corporate Classification**
