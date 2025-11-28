@@ -1,0 +1,7 @@
+# Ignore all client investigation folders and their contents
+# Each client will have their own folder with test scripts
+# Keep only the README.md file tracked
+*
+!README.md
+!.gitignore
+

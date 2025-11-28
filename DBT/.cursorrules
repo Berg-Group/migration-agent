@@ -40,14 +40,24 @@ This rule completely eliminates the broken-eval behaviour you keep seeing.
 - Cursor must always consult table/ for table-level rules.
 - Cursor must combine crm/ + table/ knowledge when reasoning about any transformation or QA failure.
 - **CRITICAL**: After running each DBT model, Cursor MUST check if a knowledge base file exists for that table (DBT/knowledge_base/table/<table_name>.yaml).
-- If a knowledge base file exists, Cursor MUST verify all points in "Key Issues to Check" and "What the Agent Should Check" sections are addressed.
+- If a knowledge base file exists, Cursor MUST:
+  - **Create investigation script** (if one doesn't exist): Create a Python validation script in `../client_investigation/<client_name>/validate_<table_name>.py` that automates the knowledge base checks
+  - **Run the investigation script** to verify all points in "Key Issues to Check" and "What the Agent Should Check" sections are addressed
 - This validation must happen AFTER DBT model runs successfully but BEFORE running QA Suite.
 - **IMPORTANT**: When verifying issues, Cursor MUST compare source data vs transformed data to distinguish:
   - Source data quality issues (malformed values in source) → Document but DO NOT FIX
   - Transformation bugs (transformation corrupted valid source data) → MUST FIX
 - **Delimiter-Separated Values**: If source has multiple values in one field (comma/slash/semicolon separated), transformation MUST split them - this is a requirement, not optional
+- **CRITICAL WORKFLOW**: If transformation bugs are found (especially CRITICAL issues like NULL atlas_*_id columns):
+  - **STEP 1**: Fix the transformation model (edit the client-specific SQL model file)
+  - **STEP 2**: Rerun DBT for that model (using the same selection pattern: clients.<client_name>.<model_name>)
+  - **STEP 3**: Re-run knowledge base validation to verify the fix
+  - **STEP 4**: Only if knowledge base validation passes (or issues are documented as acceptable source quality), proceed to QA
+  - **STEP 5**: Run QA Suite for the table prefix
+  - **STEP 6**: If QA fails, repeat the fix → rerun DBT → re-check knowledge base → rerun QA loop until both knowledge base validation and QA pass
 - Cursor must fix ONLY transformation bugs found in knowledge base checks before proceeding to QA.
 - Source data quality issues should be documented as acceptable/expected and not fixed.
+- **CRITICAL ISSUES** (like NULL atlas_*_id columns) MUST be fixed immediately - do not proceed to QA until these are resolved.
 
 3. DATA AND MODEL INVESTIGATION RULES
 - migration_config.yml is the single source of truth for client_name, source_crm, source_schema, target_schema, master_id.
@@ -179,6 +189,20 @@ This rule completely eliminates the broken-eval behaviour you keep seeing.
   - a business rule or field meaning is unclear from existing config, crm/, and table/ knowledge.
 - Cursor should avoid complex multi-line or heavily chained shell constructs; it should execute commands in simple, sequential steps to reduce shell errors.
 - If DBT fails with environment variable errors, immediately check if .env was loaded correctly using `echo $REDSHIFT_HOST`.
+
+13. CLIENT INVESTIGATION SCRIPTS
+- **CRITICAL**: When creating test Python scripts, data comparison scripts, or any investigation scripts:
+  - MUST create them in: `client_investigation/<client_name>/` (parent directory, not DBT/)
+  - Read `client_name` from migration_config.yml in parent directory
+  - Create the client-specific folder if it doesn't exist: `client_investigation/<client_name>/`
+  - All test scripts, comparison scripts, and investigation tools MUST be placed in this client-specific folder
+  - NEVER create orphaned scripts in DBT/tests/ or root directories - they must be organized by client
+  - Example: For client "lechley_associates", scripts go in `../client_investigation/lechley_associates/`
+  - **Timestamped Files**: When scripts are run, they should create timestamped copies of themselves (e.g., `validate_person_identities_2025-11-28_17-45-35.py`) and timestamped output files (e.g., `validate_person_identities_2025-11-28_17-45-35.txt`) for historical record-keeping
+  - This keeps the database clean and organizes investigation work by client
+- Test scripts should follow naming conventions: test_<purpose>.py or <purpose>_test.py
+- Always load environment variables from parent .env before running test scripts.
+- Test scripts should be reusable and well-documented.
 
 
 

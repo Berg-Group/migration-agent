@@ -45,20 +45,25 @@ For each model file in DBT/models/clients/<client_name>:
   - If the knowledge base file exists, Cursor MUST:
     - Read and understand all points listed in the "Key Issues to Check" section
     - Read and understand all points in the "What the Agent Should Check" section
-    - Execute SQL queries or data inspections to verify each point is addressed
+    - **Create investigation script** (if one doesn't exist): Create a Python validation script in `client_investigation/<client_name>/validate_<table_name>.py` that automates the knowledge base checks
+    - **Run the investigation script** to execute SQL queries and data inspections to verify each point is addressed
+    - The script should check for CRITICAL issues first (like NULL atlas_*_id columns), then other validation points
     - **CRITICAL DISTINCTION**: When verifying data quality issues, Cursor MUST compare source data vs transformed data to determine:
       - If source data has quality issues (missing dots, malformed values) → Document but DO NOT FIX (this is source data quality)
       - If transformation corrupted valid source data → MUST FIX (this is a transformation bug)
     - **Delimiter-Separated Values**: If source data has multiple values in a single field (e.g., `email1@example.com, email2@example.com`), transformation MUST split them into separate records - this is a transformation requirement, not optional
     - Document findings and fix ONLY transformation bugs before proceeding to QA
     - Do not attempt to fix source data quality issues - these should be documented as acceptable/expected
-  - **REQUIRED WORKFLOW**: If transformation bugs are found that require model changes:
-    - Fix the model
-    - Rerun DBT
-    - Re-check knowledge base points
-    - Only proceed to QA after all knowledge base checks pass or are documented as acceptable (source quality issues are acceptable)
-- This step is MANDATORY and applies to ALL tables that have knowledge base files
-- Cursor must not skip this step even if QA would catch some issues - knowledge base checks are table-specific validations that may catch issues QA doesn't
+  - **CRITICAL WORKFLOW**: If transformation bugs are found (especially CRITICAL issues like NULL atlas_*_id columns):
+    - **STEP 1**: Fix the transformation model (edit the client-specific SQL model file)
+    - **STEP 2**: Rerun DBT for that model (using the same selection pattern: clients.<client_name>.<model_name>)
+    - **STEP 3**: Re-run knowledge base validation to verify the fix
+    - **STEP 4**: Only if knowledge base validation passes (or issues are documented as acceptable source quality), proceed to QA
+    - **STEP 5**: Run QA Suite for the table prefix
+    - **STEP 6**: If QA fails, repeat the fix → rerun DBT → re-check knowledge base → rerun QA loop until both knowledge base validation and QA pass
+  - This step is MANDATORY and applies to ALL tables that have knowledge base files
+  - Cursor must not skip this step even if QA would catch some issues - knowledge base checks are table-specific validations that may catch issues QA doesn't
+  - **CRITICAL ISSUES** (like NULL atlas_*_id columns) MUST be fixed immediately - do not proceed to QA until these are resolved
 
 6. Immediate QA after each model
 - After each successful model run, immediately run the QA Suite for the relevant table prefix.
@@ -86,3 +91,14 @@ For each model file in DBT/models/clients/<client_name>:
   - a required value (path, client_name, schema name, table name) is missing or ambiguous,
   - a business rule is unclear (e.g. how a particular field should behave),
   - a proposed change could affect multiple clients or CRMs and scope needs confirmation.
+
+10. Client Investigation Scripts
+- **CRITICAL**: When creating test Python scripts, data comparison scripts, or any investigation scripts:
+  - MUST create them in: `client_investigation/<client_name>/`
+  - Read `client_name` from migration_config.yml
+  - Create the client-specific folder if it doesn't exist: `client_investigation/<client_name>/`
+  - All test scripts, comparison scripts, and investigation tools MUST be placed in this client-specific folder
+  - NEVER create orphaned scripts in root directories or DBT/tests/ - they must be organized by client
+  - Example: For client "lechley_associates", scripts go in `client_investigation/lechley_associates/`
+  - **Timestamped Files**: When scripts are run, they should create timestamped copies of themselves (e.g., `validate_person_identities_2025-11-28_17-45-35.py`) and timestamped output files (e.g., `validate_person_identities_2025-11-28_17-45-35.txt`) for historical record-keeping
+  - This keeps the database clean and organizes investigation work by client

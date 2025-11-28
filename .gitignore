@@ -38,3 +38,8 @@ logs/
 
 # Client-specific DBT models
 DBT/models/clients/
+
+# Client investigation scripts (keep structure, ignore content)
+client_investigation/*/
+!client_investigation/.gitignore
+!client_investigation/README.md
