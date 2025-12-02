@@ -89,15 +89,28 @@ For each model file in DBT/models/clients/<client_name> (including utils/ subfol
     - Exit with error code if 0 rows detected when source has data
   - **IF 0 rows detected and source has data:**
     - This is a CRITICAL transformation bug (likely WHERE clause, JOIN, or filter issue)
-    - Cursor MUST fix the DBT model immediately
-    - Cursor MUST rerun DBT for that model
-    - Cursor MUST rerun row count validation
-    - Do NOT proceed to knowledge base validation until row count is > 0 OR source is verified to have 0 rows
+    - **CRITICAL RULE**: Cursor MUST NOT document this as "expected behavior" or "acceptable" - it MUST be fixed
+    - **Common causes to investigate**:
+      - INNER JOIN conditions that are too restrictive (should be LEFT JOIN)
+      - WHERE clause filters that exclude all valid data
+      - Empty agency filters or other configuration that incorrectly evaluates to exclude all rows
+      - Data type mismatches in JOIN conditions
+      - Incorrect join logic (e.g., joining on wrong columns, using UUIDs where numeric IDs are needed)
+    - Cursor MUST:
+      1. Investigate the DBT model logic thoroughly
+      2. Check if the model should source directly from source tables instead of joining intermediate tables
+      3. Verify join conditions match the actual data relationships
+      4. Fix the DBT model immediately
+      5. Rerun DBT for that model
+      6. Rerun row count validation
+      7. Do NOT proceed to knowledge base validation until row count is > 0 OR source is verified to have 0 rows
   - **IF 0 rows detected and source also has 0 rows (verified):**
     - This is ACCEPTABLE - proceed to Step 5 (Knowledge Base Validation)
   - **IF row count is acceptable (> 0):**
     - Proceed to Step 5 (Knowledge Base Validation)
   - This step prevents situations where models silently produce 0 rows due to filter/join issues, while allowing legitimate cases where source data doesn't exist
+  - **REMEMBER**: If source has data, target MUST have data (or a very good reason why it doesn't - which should be rare and explicitly documented)
+  - **REMEMBER**: If source has data, target MUST have data (or a very good reason why it doesn't - which should be rare and explicitly documented)
 
 5. Knowledge Base Validation (REQUIRED for all tables - MUST happen AFTER EACH model, not in batch)
 - **CRITICAL**: This step MUST be completed for EACH model individually, immediately after that model's DBT run completes successfully.

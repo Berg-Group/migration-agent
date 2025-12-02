@@ -76,15 +76,31 @@ This rule completely eliminates the broken-eval behaviour you keep seeing.
       - Exit with error code if 0 rows detected when source has data
     - **IF 0 rows detected and source has data:**
       - This is a CRITICAL transformation bug (likely WHERE clause, JOIN, or filter issue)
-      - Cursor MUST fix the DBT model immediately
-      - Cursor MUST rerun DBT for that model
-      - Cursor MUST rerun row count validation
-      - Do NOT proceed to knowledge base validation until row count is > 0 OR source is verified to have 0 rows
+      - **CRITICAL RULE**: Cursor MUST NOT document this as "expected behavior" or "acceptable" - it MUST be fixed
+      - **Common causes to investigate**:
+        - INNER JOIN conditions that are too restrictive (should be LEFT JOIN)
+        - WHERE clause filters that exclude all valid data
+        - Empty agency filters or other configuration that incorrectly evaluates to exclude all rows
+        - Data type mismatches in JOIN conditions
+        - Incorrect join logic (e.g., joining on wrong columns, using UUIDs where numeric IDs are needed)
+        - Model trying to join intermediate tables when it should source directly from source tables
+      - Cursor MUST:
+        1. Investigate the DBT model logic thoroughly
+        2. Check if the model should source directly from source tables instead of joining intermediate tables
+        3. Verify join conditions match the actual data relationships
+        4. Check template model to see if it has the same issue or uses a different approach
+        5. Fix the DBT model immediately
+        6. Rerun DBT for that model
+        7. Rerun row count validation
+        8. Do NOT proceed to knowledge base validation until row count is > 0 OR source is verified to have 0 rows
+      - **REMEMBER**: If source has data, target MUST have data (or a very good reason why it doesn't - which should be rare and explicitly documented)
     - **IF 0 rows detected and source also has 0 rows (verified):**
       - This is ACCEPTABLE - proceed to knowledge base validation
     - **IF row count is acceptable (> 0):**
       - Proceed to knowledge base validation
     - This step prevents situations where models silently produce 0 rows due to filter/join issues, while allowing legitimate cases where source data doesn't exist
+    - **REMEMBER**: If source has data, target MUST have data (or a very good reason why it doesn't - which should be rare and explicitly documented)
+    - **REMEMBER**: If source has data, target MUST have data (or a very good reason why it doesn't - which should be rare and explicitly documented)
 
 - **CRITICAL STEP 2C: Knowledge Base Validation (MUST happen AFTER row count validation, before QA)**
   - After row count validation passes, Cursor MUST check if a knowledge base file exists for that table (DBT/knowledge_base/table/<table_name>.yaml).

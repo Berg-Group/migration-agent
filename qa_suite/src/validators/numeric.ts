@@ -25,12 +25,14 @@ export async function numeric(
       SELECT COUNT(*) AS total
       FROM ${formattedTable}
       WHERE ${column} IS NOT NULL
-      AND TRIM(${column}::text) ~ '[^0-9+\-\.eE]'
-      OR TRIM(${column}::text) = ''
-      OR TRIM(${column}::text) ~ '^[\.eE]'
-      OR TRIM(${column}::text) ~ '[\.eE]$'
-      OR TRIM(${column}::text) ~ '\..*\.'
-      OR TRIM(${column}::text) ~ '[eE].*[eE]'
+      AND (
+        TRIM(${column}::text) ~ '[^0-9+\-\.eE]'
+        OR TRIM(${column}::text) = ''
+        OR TRIM(${column}::text) ~ '^[\.eE]'
+        OR TRIM(${column}::text) ~ '[\.eE]$'
+        OR TRIM(${column}::text) ~ '\..*\.'
+        OR TRIM(${column}::text) ~ '[eE].*[eE]'
+      )
     `);
     
     if (countResult.total > 0) {
