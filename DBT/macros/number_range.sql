@@ -8,6 +8,6 @@
         WHEN {{ number }} <= 1000 THEN '501-1000'
         WHEN {{ number }} <= 5000 THEN '1001-5000'
         WHEN {{ number }} <= 10000 THEN '5001-10000'
-        ELSE '10001+'
+        ELSE '10000+'
     END
 {% endmacro %} 
