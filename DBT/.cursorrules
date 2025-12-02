@@ -39,11 +39,59 @@ This rule completely eliminates the broken-eval behaviour you keep seeing.
 - Cursor must always consult crm/ for CRM-wide behaviour.
 - Cursor must always consult table/ for table-level rules.
 - Cursor must combine crm/ + table/ knowledge when reasoning about any transformation or QA failure.
-- **CRITICAL**: After running each DBT model, Cursor MUST check if a knowledge base file exists for that table (DBT/knowledge_base/table/<table_name>.yaml).
-- If a knowledge base file exists, Cursor MUST:
-  - **Create investigation script** (if one doesn't exist): Create a Python validation script in `../client_investigation/<client_name>/validate_<table_name>.py` that automates the knowledge base checks
-  - **Run the investigation script** to verify all points in "Key Issues to Check" and "What the Agent Should Check" sections are addressed
-- This validation must happen AFTER DBT model runs successfully but BEFORE running QA Suite.
+- **CRITICAL STEP 2A: Check Knowledge Base BEFORE Running DBT Model**
+  - BEFORE running any DBT model, Cursor MUST:
+    - Extract the table name from the model filename (e.g., 3_people_bh → "people", 12_candidates_bh → "candidates")
+    - Check if a knowledge base file exists: DBT/knowledge_base/table/<table_name>.yaml
+    - If the knowledge base file exists, Cursor MUST read it COMPLETELY, especially looking for sections titled "## CRITICAL:" or "CRITICAL:"
+    - **IF the knowledge base contains a "CRITICAL: [Something] Mapping Required Before Processing" section:**
+      - Cursor MUST STOP execution immediately
+      - Cursor MUST prompt the user using the EXACT prompt text provided in the knowledge base file
+      - Cursor MUST wait for the user's explicit response before proceeding
+      - Cursor MUST NOT run the DBT model until the user has confirmed the mapping strategy
+      - This is a BLOCKING step - do not proceed to DBT execution until mapping is confirmed
+    - Common tables requiring mapping prompts:
+      - **companies**: relationship/status mapping (maps source status to 'none', 'target', or 'client')
+      - **candidates**: status mapping (maps source candidate_status to target status values)
+      - **projects**: status/close_reason mapping (maps job_status to state and close_reason)
+      - **person_notes**: user mapping (maps source user_id to atlas user IDs)
+      - **company_notes**: user mapping (maps source user_id to atlas user IDs)
+  - **This check MUST happen BEFORE running DBT - it is a mandatory blocking step**
+- **CRITICAL STEP 2B: Row Count Validation (MUST happen IMMEDIATELY after DBT, before knowledge base validation)**
+  - **CRITICAL**: This check MUST happen immediately after each DBT model run completes successfully, BEFORE knowledge base validation.
+  - **APPLIES TO ALL MODELS**: This validation applies to ALL models including utility models (people_to_import, companies_to_import, etc.)
+  - **NEVER skip this step** - it catches critical issues like 0-record outputs early.
+  - **For utility models**: If a utility model has 0 rows when source data exists, this will cause downstream models to fail - it's still a CRITICAL error that must be fixed.
+  - After DBT model completes, Cursor MUST:
+    - Extract the table name from the model filename (e.g., 13_meetings_bh → "meetings_bh")
+    - Run the row count validation script: `python ../client_investigation/<client_name>/check_row_count.py <model_name> <table_name> [source_table]`
+    - The script will:
+      - Check if target table has 0 rows
+      - **VERIFY SOURCE DATA**: If target has 0 rows, the script MUST check the source table to determine if this is acceptable
+      - **CRITICAL DISTINCTION**:
+        - If target has 0 rows AND source has data → CRITICAL ERROR (transformation bug - must fix immediately)
+        - If target has 0 rows AND source also has 0 rows → ACCEPTABLE (proceed normally)
+        - If target has 0 rows but source cannot be verified → CRITICAL ERROR (manual investigation required)
+      - Compare source vs target row counts (warn if >50% difference, info if >10%)
+      - Exit with error code if 0 rows detected when source has data
+    - **IF 0 rows detected and source has data:**
+      - This is a CRITICAL transformation bug (likely WHERE clause, JOIN, or filter issue)
+      - Cursor MUST fix the DBT model immediately
+      - Cursor MUST rerun DBT for that model
+      - Cursor MUST rerun row count validation
+      - Do NOT proceed to knowledge base validation until row count is > 0 OR source is verified to have 0 rows
+    - **IF 0 rows detected and source also has 0 rows (verified):**
+      - This is ACCEPTABLE - proceed to knowledge base validation
+    - **IF row count is acceptable (> 0):**
+      - Proceed to knowledge base validation
+    - This step prevents situations where models silently produce 0 rows due to filter/join issues, while allowing legitimate cases where source data doesn't exist
+
+- **CRITICAL STEP 2C: Knowledge Base Validation (MUST happen AFTER row count validation, before QA)**
+  - After row count validation passes, Cursor MUST check if a knowledge base file exists for that table (DBT/knowledge_base/table/<table_name>.yaml).
+  - If a knowledge base file exists, Cursor MUST:
+    - **Create investigation script** (if one doesn't exist): Create a Python validation script in `../client_investigation/<client_name>/validate_<table_name>.py` that automates the knowledge base checks
+    - **Run the investigation script** to verify all points in "Key Issues to Check" and "What the Agent Should Check" sections are addressed
+  - This validation must happen AFTER row count validation passes but BEFORE running QA Suite.
 - **IMPORTANT**: When verifying issues, Cursor MUST compare source data vs transformed data to distinguish:
   - Source data quality issues (malformed values in source) → Document but DO NOT FIX
   - Transformation bugs (transformation corrupted valid source data) → MUST FIX

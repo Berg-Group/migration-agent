@@ -21,8 +21,11 @@ Cursor is responsible for driving the migration workflow end-to-end for each cli
 
 2. Create / confirm the client workspace
 - Ensure the client has a folder inside DBT/models/clients corresponding to client_name.
-- If needed, copy template SQL models from the appropriate CRM template folder (DBT/models/<source_crm>) into DBT/models/clients/<client_name>.
+- **CRITICAL**: Copy ALL template SQL models from the appropriate CRM template folder (DBT/models/Templates/<source_crm>/*.sql) into DBT/models/clients/<client_name>.
+- **IMPORTANT**: The `tables_to_transform` field in migration_config.yml is for documentation/tracking purposes only - it does NOT filter which templates to copy. ALL template models must be copied regardless of what's listed in `tables_to_transform`.
+- Also copy any utility models from DBT/models/Templates/<source_crm>/utils/ if they exist.
 - All editing for this migration must occur in the client folder, not in the template folders.
+- After copying, verify that the number of model files in the client folder matches the number in the template folder (excluding Archive/ and other non-model files).
 
 3. Determine the model run order
 - Navigate (conceptually or via terminal) to DBT/models/clients/<client_name>.
@@ -30,15 +33,75 @@ Cursor is responsible for driving the migration workflow end-to-end for each cli
 - Treat this as the canonical sequence for running models for this client.
 
 4. Per-model workflow (for each model in order)
-For each model file in DBT/models/clients/<client_name>:
+**CRITICAL: Models MUST be processed ONE AT A TIME, not in batches. Each model must complete its full workflow before moving to the next.**
 
+**IMPORTANT**: This workflow applies to ALL models, including:
+- Main transformation models (e.g., 0_users_bh.sql, 1_people_bh.sql, 3_companies_bh.sql)
+- Utility models in utils/ subfolder (e.g., people_to_import.sql, companies_to_import.sql, people_dupes_bh.sql)
+- All other models in the client folder
+
+For each model file in DBT/models/clients/<client_name> (including utils/ subfolder, processed individually, not in groups):
+
+**CRITICAL STEP 4A: Check Knowledge Base for Mapping Requirements (MUST DO BEFORE RUNNING DBT)**
+- Extract the table name from the model filename (e.g., 3_people_bh → "people", 12_candidates_bh → "candidates", 10_projects_bh → "projects")
+- Check if a knowledge base file exists: DBT/knowledge_base/table/<table_name>.yaml
+- If the knowledge base file exists, Cursor MUST:
+  - Read the ENTIRE knowledge base file, especially looking for sections titled "CRITICAL:" or "## CRITICAL:"
+  - **IF the knowledge base contains a "CRITICAL: [Something] Mapping Required Before Processing" section:**
+    - Cursor MUST STOP and prompt the user using the EXACT prompt text provided in the knowledge base file
+    - Cursor MUST wait for the user's response before proceeding
+    - Cursor MUST NOT run the DBT model until the user has confirmed the mapping strategy
+    - This applies to mappings for: status, relationship, close_reason, user mapping, or any other field mappings
+  - Common tables requiring mapping prompts:
+    - **companies**: relationship/status mapping
+    - **candidates**: status mapping
+    - **projects**: status/close_reason mapping
+    - **person_notes**: user mapping
+    - **company_notes**: user mapping
+- **This check MUST happen BEFORE running DBT - it is a blocking step**
+- If no knowledge base file exists or no mapping requirements are found, proceed to Step 4B
+
+**STEP 4B: Run DBT Model (ONE MODEL AT A TIME)**
+- **CRITICAL**: Run DBT for ONLY ONE model at a time using: `--select clients.<client_name>.<model_name>`
+- **NEVER run multiple models in a single DBT command** (e.g., do NOT use `--select clients.<client_name>.<model1> clients.<client_name>.<model2> ...`)
 - Move execution context to the DBT directory.
 - Ensure environment variables from the parent .env are loaded (using the project's standard method).
 - Ensure target_schema is set according to migration_config.yml.
 - Execute DBT for this single model only, using the clients.<client_name>.<model_name> selection pattern.
 - Cursor should run these steps itself in the integrated terminal, without asking for approval, as long as all required information (paths, client_name, target_schema) is known.
 
-5. Knowledge Base Validation (REQUIRED for all tables)
+**STEP 4C: Row Count Validation (CRITICAL - MUST happen IMMEDIATELY after DBT, before knowledge base validation)**
+- **CRITICAL**: This check MUST happen immediately after each DBT model run completes successfully, BEFORE knowledge base validation.
+- **APPLIES TO ALL MODELS**: This validation applies to ALL models including utility models (people_to_import, companies_to_import, etc.)
+- **NEVER skip this step** - it catches critical issues like 0-record outputs early.
+- **For utility models**: If a utility model has 0 rows when source data exists, this will cause downstream models to fail - it's still a CRITICAL error that must be fixed.
+- After DBT model completes, Cursor MUST:
+  - Extract the table name from the model filename (e.g., 13_meetings_bh → "meetings_bh")
+  - Run the row count validation script: `python client_investigation/<client_name>/check_row_count.py <model_name> <table_name> [source_table]`
+  - The script will:
+    - Check if target table has 0 rows
+    - **VERIFY SOURCE DATA**: If target has 0 rows, the script MUST check the source table to determine if this is acceptable
+    - **CRITICAL DISTINCTION**:
+      - If target has 0 rows AND source has data → CRITICAL ERROR (transformation bug - must fix immediately)
+      - If target has 0 rows AND source also has 0 rows → ACCEPTABLE (proceed normally)
+      - If target has 0 rows but source cannot be verified → CRITICAL ERROR (manual investigation required)
+    - Compare source vs target row counts (warn if >50% difference, info if >10%)
+    - Exit with error code if 0 rows detected when source has data
+  - **IF 0 rows detected and source has data:**
+    - This is a CRITICAL transformation bug (likely WHERE clause, JOIN, or filter issue)
+    - Cursor MUST fix the DBT model immediately
+    - Cursor MUST rerun DBT for that model
+    - Cursor MUST rerun row count validation
+    - Do NOT proceed to knowledge base validation until row count is > 0 OR source is verified to have 0 rows
+  - **IF 0 rows detected and source also has 0 rows (verified):**
+    - This is ACCEPTABLE - proceed to Step 5 (Knowledge Base Validation)
+  - **IF row count is acceptable (> 0):**
+    - Proceed to Step 5 (Knowledge Base Validation)
+  - This step prevents situations where models silently produce 0 rows due to filter/join issues, while allowing legitimate cases where source data doesn't exist
+
+5. Knowledge Base Validation (REQUIRED for all tables - MUST happen AFTER EACH model, not in batch)
+- **CRITICAL**: This step MUST be completed for EACH model individually, immediately after that model's DBT run completes successfully.
+- **NEVER skip this step or batch it with multiple models** - each model must have its knowledge base validation completed before moving to the next model.
 - After each successful DBT model run, BEFORE running QA, Cursor MUST:
   - Extract the table name from the model filename (e.g., 3_people_rcrm → "people", 4_person_identities_rcrm → "person_identities")
   - Check if a knowledge base file exists: DBT/knowledge_base/table/<table_name>.yaml
@@ -65,17 +128,23 @@ For each model file in DBT/models/clients/<client_name>:
   - Cursor must not skip this step even if QA would catch some issues - knowledge base checks are table-specific validations that may catch issues QA doesn't
   - **CRITICAL ISSUES** (like NULL atlas_*_id columns) MUST be fixed immediately - do not proceed to QA until these are resolved
 
-6. Immediate QA after each model
-- After each successful model run, immediately run the QA Suite for the relevant table prefix.
-- The table prefix is usually the part of the model filename before the CRM suffix (for example: 3_people_rcrm → “people”).
+6. Immediate QA after each model (ONE MODEL AT A TIME)
+- **CRITICAL**: QA MUST be run for EACH model individually, immediately after knowledge base validation passes for that model.
+- **NEVER run QA for all tables at once** (e.g., do NOT use `npm run qa` without a table prefix) until ALL individual models have passed their QA checks.
+- After each successful model run and knowledge base validation, immediately run the QA Suite for the relevant table prefix.
+- The table prefix is usually the part of the model filename before the CRM suffix (for example: 3_people_rcrm → "people").
+- Use: `npm run qa <table_prefix>` (e.g., `npm run qa people`, `npm run qa projects`)
 - Verify QA output before moving to the next model.
 - Cursor should run the QA command(s) itself using the established QA Suite mechanism.
+- Only after ALL individual models have passed QA should a full QA sweep be run (see Step 7).
 
-7. Loop until clean
-- If QA fails: inspect the error, identify the responsible DBT model, adjust only the necessary logic in the client model, rerun the model, then rerun the corresponding QA group.
-- Repeat this fix → rerun model → rerun QA loop until QA passes for that model.
-- Proceed to the next model only when QA for the current one is clean.
-- When all client models have passed their QA checks, run the full QA Suite sweep once more to confirm everything passes together.
+7. Loop until clean (PER MODEL)
+- **CRITICAL**: The fix → rerun → validate → QA loop applies to EACH model individually.
+- If QA fails for a model: inspect the error, identify the responsible DBT model, adjust only the necessary logic in the client model, rerun the model, then rerun knowledge base validation, then rerun the corresponding QA.
+- Repeat this fix → rerun model → re-check knowledge base → rerun QA loop until QA passes for that model.
+- **Proceed to the next model ONLY when the current model's QA is clean.**
+- **NEVER move to the next model if the current one has QA failures or knowledge base validation issues.**
+- When all client models have passed their individual QA checks, run the full QA Suite sweep once more (`npm run qa` without prefix) to confirm everything passes together.
 
 8. Guardrails
 - Do not modify template SQL files; only use them as a source to copy into client-specific folders.
@@ -87,7 +156,10 @@ For each model file in DBT/models/clients/<client_name>:
 9. Automation behaviour
 - Cursor should run DBT models and QA checks automatically in the integrated terminal when the workflow requires it.
 - Cursor should not ask for permission before running these commands.
-- Cursor must pause and ask the user only when:
+- **CRITICAL EXCEPTION**: Cursor MUST pause and prompt the user when:
+  - A knowledge base file contains a "CRITICAL: [Something] Mapping Required Before Processing" section (see Step 4A)
+  - This is a BLOCKING step - DBT model execution MUST NOT proceed until user confirms mapping strategy
+- Cursor must also pause and ask the user when:
   - a required value (path, client_name, schema name, table name) is missing or ambiguous,
   - a business rule is unclear (e.g. how a particular field should behave),
   - a proposed change could affect multiple clients or CRMs and scope needs confirmation.
