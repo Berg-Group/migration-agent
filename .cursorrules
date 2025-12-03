@@ -61,6 +61,21 @@ For each model file in DBT/models/clients/<client_name> (including utils/ subfol
 - **This check MUST happen BEFORE running DBT - it is a blocking step**
 - If no knowledge base file exists or no mapping requirements are found, proceed to Step 4B
 
+**STEP 4B1: Configuration Validation (CRITICAL - MUST happen BEFORE running DBT models)**
+- **CRITICAL**: Before running any DBT models, Cursor MUST run configuration validation to catch configuration issues that could cause data loss.
+- Run: `python client_investigation/<client_name>/validate_config_and_filtering.py`
+- This validation checks:
+  - Domain variable is set (if required for CRM)
+  - Users count is reasonable (not including all contacts)
+  - People exclusion rate is reasonable (not over-filtering)
+  - Users are not incorrectly included in people
+- **IF validation finds CRITICAL issues:**
+  - Cursor MUST STOP and fix the issues before proceeding
+  - Do NOT run DBT models until configuration is correct
+- **IF validation finds warnings:**
+  - Cursor should investigate and verify if warnings are acceptable
+  - Document findings before proceeding
+
 **STEP 4B: Run DBT Model (ONE MODEL AT A TIME)**
 - **CRITICAL**: Run DBT for ONLY ONE model at a time using: `--select clients.<client_name>.<model_name>`
 - **NEVER run multiple models in a single DBT command** (e.g., do NOT use `--select clients.<client_name>.<model1> clients.<client_name>.<model2> ...`)
@@ -107,10 +122,38 @@ For each model file in DBT/models/clients/<client_name> (including utils/ subfol
   - **IF 0 rows detected and source also has 0 rows (verified):**
     - This is ACCEPTABLE - proceed to Step 5 (Knowledge Base Validation)
   - **IF row count is acceptable (> 0):**
-    - Proceed to Step 5 (Knowledge Base Validation)
+    - Proceed to Step 4D (Utility Model Validation), then Step 5 (Knowledge Base Validation)
   - This step prevents situations where models silently produce 0 rows due to filter/join issues, while allowing legitimate cases where source data doesn't exist
   - **REMEMBER**: If source has data, target MUST have data (or a very good reason why it doesn't - which should be rare and explicitly documented)
   - **REMEMBER**: If source has data, target MUST have data (or a very good reason why it doesn't - which should be rare and explicitly documented)
+
+**STEP 4D: Utility Model Validation (CRITICAL - MUST happen after row count validation for key tables)**
+- **CRITICAL**: This check MUST happen after row count validation for key tables (people, companies, users) to ensure utility models are not too restrictive.
+- **PURPOSE**: Prevent utility models from filtering out valid records that should be included based on source data patterns.
+- **PRINCIPLE**: Utility models should include ALL records (after basic filters), not just those with specific relationships. The goal is to migrate all valid data, not just data with relationships.
+- **CRITICAL**: Cursor MUST read the CRM knowledge base (`DBT/knowledge_base/crm/<source_crm>.yml`) BEFORE running this validation to understand CRM-specific patterns.
+- After row count validation passes for key tables (people, companies, users), Cursor MUST:
+  - **Check CRM knowledge base**: Read `DBT/knowledge_base/crm/<source_crm>.yml` for CRM-specific utility model requirements
+  - **If CRM knowledge base doesn't exist or is incomplete**: Document the patterns discovered during migration and update the knowledge base file
+  - **For each utility model** (e.g., `people_to_import`, `companies_to_import`):
+    - Check if CRM knowledge base defines expected patterns for this utility model
+    - If defined, validate utility model against source data using CRM-specific patterns from knowledge base
+    - If not defined, validate generically: utility model should include all records from source table (after basic filters)
+    - **CRITICAL**: If utility model has significantly fewer records (>10% difference from source after basic filters), it's too restrictive
+    - **Expected pattern**: Utility models should include ALL records (after basic filters), matching the source count
+    - **Common mistake**: Filtering to only records with specific relationships (comments, clients, jobs) - this excludes valid records
+  - **IF utility model is too restrictive:**
+    - This is a CRITICAL issue - utility models are filtering out valid records
+    - Cursor MUST:
+      1. Check CRM knowledge base for expected patterns
+      2. Investigate the utility model logic
+      3. Update utility models to include ALL records (after basic filters), not just those with relationships
+      4. **Update CRM knowledge base**: If patterns discovered differ from knowledge base, update `DBT/knowledge_base/crm/<source_crm>.yml` to document the correct patterns
+      5. Re-run utility models
+      6. Re-run dependent models
+      7. Re-verify row counts match source data patterns
+  - **IF utility models match source data patterns:**
+    - Proceed to Step 5 (Knowledge Base Validation)
 
 5. Knowledge Base Validation (REQUIRED for all tables - MUST happen AFTER EACH model, not in batch)
 - **CRITICAL**: This step MUST be completed for EACH model individually, immediately after that model's DBT run completes successfully.
@@ -153,10 +196,19 @@ For each model file in DBT/models/clients/<client_name> (including utils/ subfol
 
 7. Loop until clean (PER MODEL)
 - **CRITICAL**: The fix → rerun → validate → QA loop applies to EACH model individually.
-- If QA fails for a model: inspect the error, identify the responsible DBT model, adjust only the necessary logic in the client model, rerun the model, then rerun knowledge base validation, then rerun the corresponding QA.
-- Repeat this fix → rerun model → re-check knowledge base → rerun QA loop until QA passes for that model.
+- **CRITICAL**: Cursor MUST STOP and fix issues before moving to the next model. This is NOT optional.
+- **NEVER continue to the next model if the current model has:**
+  - Row count validation failures (0 rows when source has data)
+  - Knowledge base validation failures (CRITICAL issues like NULL atlas_*_id)
+  - QA failures (any validation errors)
+- If QA fails for a model: inspect the error, identify the responsible DBT model, adjust only the necessary logic in the client model, rerun the model, then rerun row count validation, then rerun knowledge base validation, then rerun the corresponding QA.
+- Repeat this fix → rerun model → re-check row count → re-check knowledge base → rerun QA loop until QA passes for that model.
 - **Proceed to the next model ONLY when the current model's QA is clean.**
 - **NEVER move to the next model if the current one has QA failures or knowledge base validation issues.**
+- **Common issues to check before proceeding:**
+  - Empty agency filters causing 0 rows (check if `get_agency_filter()` returns `('')` and handle it)
+  - INNER JOIN with empty users_bh causing 0 rows (use LEFT JOIN with COALESCE fallback)
+  - Empty master_id causing NULL atlas_*_id (document or set master_id in config)
 - When all client models have passed their individual QA checks, run the full QA Suite sweep once more (`npm run qa` without prefix) to confirm everything passes together.
 
 8. Guardrails

@@ -1,0 +1,104 @@
+# Bullhorn CRM Knowledge Base
+# This file documents Bullhorn-specific patterns, requirements, and quirks for migrations
+
+# Source Database Pattern
+# Bullhorn source databases typically follow the pattern: <client>_bullhorn1
+source_database_pattern: "<client>_bullhorn1"
+
+# Source Tables
+source_tables:
+  people:
+    table_name: "bh_usercontact"
+    description: "Contacts/People table in Bullhorn"
+    basic_filters:
+      - condition: "lower(FirstName) != 'default contact'"
+        description: "Exclude default contact records"
+      - condition: "isdeleted != 1"
+        description: "Exclude deleted records"
+  
+  companies:
+    table_name: "bh_clientcorporation"
+    description: "Companies/Client Corporations table in Bullhorn"
+    basic_filters:
+      - condition: "name <> 'Imported Contacts'"
+        description: "Exclude 'Imported Contacts' placeholder"
+      - condition: "name IS NOT NULL"
+        description: "Exclude NULL names"
+      - condition: "TRIM(name) <> ''"
+        description: "Exclude empty names"
+  
+  users:
+    table_name: "bh_usercontact"
+    description: "Users are also in bh_usercontact, filtered by domain"
+    basic_filters:
+      - condition: "email LIKE '%@%'"
+        description: "Must have valid email format"
+      - condition: "LOWER(email) LIKE '%' || domain || '%'"
+        description: "Filtered by client domain"
+
+# Utility Models
+utility_models:
+  people_to_import:
+    description: "Utility model that determines which people/contacts to import"
+    expected_pattern: "Should include ALL contacts from bh_usercontact (after basic filters)"
+    common_mistake: "Filtering to only contacts with comments OR in clients - this excludes valid contacts"
+    validation:
+      source_table: "bh_usercontact"
+      source_filters:
+        - "lower(FirstName) != 'default contact'"
+        - "isdeleted != 1"
+      expected_count_match: "Should match source count after basic filters"
+      tolerance_percentage: 10
+  
+  companies_to_import:
+    description: "Utility model that determines which companies to import"
+    expected_pattern: "Should include ALL companies from bh_clientcorporation (after name filter)"
+    common_mistake: "Filtering to only companies with clients (with comments) OR job opportunities - this excludes valid companies"
+    validation:
+      source_table: "bh_clientcorporation"
+      source_filters:
+        - "name <> 'Imported Contacts'"
+        - "name IS NOT NULL"
+        - "TRIM(name) <> ''"
+      expected_count_match: "Should match source count after name filter"
+      tolerance_percentage: 10
+
+# CRM-Specific Quirks
+quirks:
+  - description: "People and Users both come from bh_usercontact table"
+    impact: "Need to filter users separately (by domain) to avoid duplicates"
+  
+  - description: "Companies have a placeholder 'Imported Contacts' that should be excluded"
+    impact: "Must filter out this specific name value"
+  
+  - description: "Default contacts have FirstName = 'default contact' (case insensitive)"
+    impact: "Must exclude these from people migration"
+  
+  - description: "Empty agency filters return ('') which filters out ALL rows"
+    impact: "When get_agency_filter() returns ('') (empty filter), models using 'IN {{ get_agency_filter() }}' will return 0 rows. Must check if filter is empty and allow all rows in that case. Example fix: `AND (CASE WHEN {{ get_agency_filter('notes') }} = ('') THEN TRUE ELSE LOWER(TRIM(uc.action)) IN {{ get_agency_filter('notes') }} END)`"
+    affected_models:
+      - "person_notes_bh"
+      - "company_notes_bh"
+      - "meetings_bh"
+      - "Any model using get_agency_filter()"
+  
+  - description: "INNER JOIN with empty users_bh returns 0 rows"
+    impact: "When users_bh has 0 rows (domain is empty or no users match), any INNER JOIN with users_bh will return 0 rows. Must use LEFT JOIN and COALESCE with master_id fallback. Example: `LEFT JOIN {{ ref('0_users_bh') }} u ON ...` then `COALESCE(u.atlas_id, CASE WHEN '{{ var(\"master_id\") }}' = '' THEN NULL ELSE '{{ var(\"master_id\") }}' END)`"
+    affected_models:
+      - "project_fee_splits_bh"
+      - "Any model that joins with users_bh"
+  
+  - description: "Empty master_id causes NULL atlas_*_id fields"
+    impact: "When master_id is empty in migration_config.yml AND users_bh has 0 rows, fields like atlas_owner_id, atlas_created_by_id will be NULL. This is expected behavior but QA will fail. Options: 1) Set master_id in config, 2) Use placeholder UUID (not recommended), 3) Document as acceptable when users_bh is empty"
+    affected_models:
+      - "candidates_bh (atlas_owner_id)"
+      - "fee_types_bh (created_by_atlas_id)"
+      - "Any model using master_id fallback"
+
+# Notes
+notes: |
+  - Utility models (people_to_import, companies_to_import) should include ALL records after basic filters
+  - Do NOT filter utility models to only records with relationships (comments, clients, jobs)
+  - The goal is to migrate all valid data, not just data with relationships
+  - Basic filters are minimal and only exclude invalid/placeholder records
+

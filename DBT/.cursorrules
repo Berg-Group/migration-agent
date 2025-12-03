@@ -34,11 +34,12 @@ This rule completely eliminates the broken-eval behaviour you keep seeing.
 - Cursor must ask the user whenever any structure, field, or requirement is unclear and cannot be inferred from config or code.
 
 2. DBT KNOWLEDGE BASE (CRM + TABLE)
-- knowledge_base/crm/ holds general rules for how each CRM behaves (naming patterns, null patterns, joins, location structure, etc.).
+- knowledge_base/crm/ holds general rules for how each CRM behaves (naming patterns, null patterns, joins, location structure, source tables, utility models, quirks, etc.).
 - knowledge_base/table/ holds per-table logic on how you should solve the transformation, fallback rules, field nuances, column expectations, known issues.
-- Cursor must always consult crm/ for CRM-wide behaviour.
+- Cursor must always consult crm/ for CRM-wide behaviour BEFORE running models or validations.
 - Cursor must always consult table/ for table-level rules.
 - Cursor must combine crm/ + table/ knowledge when reasoning about any transformation or QA failure.
+- **CRITICAL**: If patterns are discovered during migration that differ from or are missing from the CRM knowledge base, Cursor MUST update the knowledge base file to document these patterns for future migrations.
 - **CRITICAL STEP 2A: Check Knowledge Base BEFORE Running DBT Model**
   - BEFORE running any DBT model, Cursor MUST:
     - Extract the table name from the model filename (e.g., 3_people_bh → "people", 12_candidates_bh → "candidates")
@@ -97,12 +98,41 @@ This rule completely eliminates the broken-eval behaviour you keep seeing.
     - **IF 0 rows detected and source also has 0 rows (verified):**
       - This is ACCEPTABLE - proceed to knowledge base validation
     - **IF row count is acceptable (> 0):**
-      - Proceed to knowledge base validation
+      - Proceed to Step 2C (Utility Model Validation), then Step 2D (Optional Manual Migration Comparison) if applicable, then Step 2E (Knowledge Base Validation)
     - This step prevents situations where models silently produce 0 rows due to filter/join issues, while allowing legitimate cases where source data doesn't exist
     - **REMEMBER**: If source has data, target MUST have data (or a very good reason why it doesn't - which should be rare and explicitly documented)
     - **REMEMBER**: If source has data, target MUST have data (or a very good reason why it doesn't - which should be rare and explicitly documented)
 
-- **CRITICAL STEP 2C: Knowledge Base Validation (MUST happen AFTER row count validation, before QA)**
+- **CRITICAL STEP 2C: Utility Model Validation (MUST happen after row count validation for key tables)**
+  - **CRITICAL**: This check MUST happen after row count validation for key tables (people, companies, users) to ensure utility models are not too restrictive.
+  - **PURPOSE**: Prevent utility models from filtering out valid records that should be included based on source data patterns.
+  - **PRINCIPLE**: Utility models should include ALL records (after basic filters), not just those with specific relationships. The goal is to migrate all valid data, not just data with relationships.
+  - **CRITICAL**: Cursor MUST read the CRM knowledge base (`knowledge_base/crm/<source_crm>.yml`) BEFORE running this validation to understand CRM-specific patterns.
+  - After row count validation passes for key tables (people, companies, users), Cursor MUST:
+    - **Check CRM knowledge base**: Read `knowledge_base/crm/<source_crm>.yml` for CRM-specific utility model requirements
+    - **If CRM knowledge base doesn't exist or is incomplete**: Document the patterns discovered during migration and update the knowledge base file
+    - **For each utility model** (e.g., `people_to_import`, `companies_to_import`):
+      - Check if CRM knowledge base defines expected patterns for this utility model
+      - If defined, validate utility model against source data using CRM-specific patterns from knowledge base
+      - If not defined, validate generically: utility model should include all records from source table (after basic filters)
+      - **CRITICAL**: If utility model has significantly fewer records (>10% difference from source after basic filters), it's too restrictive
+      - **Expected pattern**: Utility models should include ALL records (after basic filters), matching the source count
+      - **Common mistake**: Filtering to only records with specific relationships (comments, clients, jobs) - this excludes valid records
+    - **IF utility model is too restrictive:**
+      - This is a CRITICAL issue - utility models are filtering out valid records
+      - Cursor MUST:
+        1. Check CRM knowledge base for expected patterns
+        2. Investigate the utility model logic
+        3. Update utility models to include ALL records (after basic filters), not just those with relationships
+        4. **Update CRM knowledge base**: If patterns discovered differ from knowledge base, update `knowledge_base/crm/<source_crm>.yml` to document the correct patterns
+        5. Re-run utility models
+        6. Re-run dependent models
+        7. Re-verify row counts match source data patterns
+    - **IF utility models match source data patterns:**
+      - Proceed to Step 2D (Knowledge Base Validation)
+
+
+- **CRITICAL STEP 2E: Knowledge Base Validation (MUST happen AFTER utility model validation, before QA)**
   - After row count validation passes, Cursor MUST check if a knowledge base file exists for that table (DBT/knowledge_base/table/<table_name>.yaml).
   - If a knowledge base file exists, Cursor MUST:
     - **Create investigation script** (if one doesn't exist): Create a Python validation script in `../client_investigation/<client_name>/validate_<table_name>.py` that automates the knowledge base checks
