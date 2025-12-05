@@ -2,10 +2,10 @@
 # Fill in all variables below before running the migration
 
 # Client Information
-client_name: "lechley_associates"  # e.g., ALL LOWER CASE AND NO SPACES
-source_crm: "recruitcrm"  # e.g., "bullhorn", "recruitcrm", "vincere", etc. - Must match a folder in DBT/models/
-source_schema: "lechley_public"  # the name of the schema on Redshift
-target_schema: "lechley_migrated_cursor"  # e.g., "atlas_migrated"
+client_name: "candid_talent"  # e.g., ALL LOWER CASE AND NO SPACES
+source_crm: "bullhorn"  # e.g., "bullhorn", "recruitcrm", "vincere", etc. - Must match a folder in DBT/models/
+source_schema: "candid_talent_public"  # the name of the schema on Redshift
+target_schema: "candid_talent_migrated_cursor"  # e.g., "atlas_migrated"
 master_id: ""  # Master user ID to use when required user doesn't exist in user table
 agency_id: ""  # Agency ID to use when required agency doesn't exist in agency table
 
@@ -16,13 +16,15 @@ linear_ticket:
 
 
 # Tables to Transform
-# List all tables that need to be migrated/transformed
+# NOTE: This field is for documentation/tracking purposes ONLY.
+# It does NOT filter which template models to copy - ALL template models from the CRM template folder must be copied.
+# List all tables that will be migrated/transformed (for reference/documentation)
 tables_to_transform:
   - "users"  # e.g., "users"
   - "people"  # e.g., "people"
   - "companies"  # e.g., "companies"
   - "projects"  # e.g., "projects"
-  # Add more tables as needed
+  # Add more tables as needed (this is just for tracking, not filtering)
 
 # Master Configuration
 # Used when not all users are being migrated

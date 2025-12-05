@@ -1,3 +1,66 @@
-#DB Quirks
-- They have a separate candidate and contacts table and you might find the same person in both tables, where they are linked by email
-- If Jordan shlosberg exists as a candidate and contact (connected by a unique identitier), then we expect one Jordan Shlosberg in the people table and then a connected company_contacts table
+# RecruitCRM Knowledge Base
+# This file documents RecruitCRM-specific patterns, requirements, and quirks for migrations
+
+# Source Database Pattern
+# RecruitCRM source databases typically follow the pattern: <client>_public
+source_database_pattern: "<client>_public"
+
+# Source Tables
+source_tables:
+  people:
+    table_name: "candidate_data"
+    description: "Candidates table in RecruitCRM - primary source for people"
+    basic_filters:
+      - condition: "slug IS NOT NULL"
+        description: "Must have a slug (unique identifier)"
+  
+  contacts:
+    table_name: "contact_data"
+    description: "Contacts table in RecruitCRM - may contain duplicates of candidates"
+    basic_filters:
+      - condition: "slug IS NOT NULL"
+        description: "Must have a slug (unique identifier)"
+  
+  companies:
+    table_name: "company_data"
+    description: "Companies table in RecruitCRM"
+    basic_filters:
+      - condition: "slug IS NOT NULL"
+        description: "Must have a slug (unique identifier)"
+      - condition: "name IS NOT NULL"
+        description: "Must have a name"
+      - condition: "TRIM(name) <> ''"
+        description: "Name must not be empty"
+
+# CRM-Specific Quirks
+quirks:
+  - description: "Separate candidate_data and contact_data tables - same person may exist in both"
+    impact: "People are matched by email/phone/LinkedIn, contacts linked to candidates via match_contact logic"
+    details: "If Jordan Shlosberg exists as both candidate and contact (connected by unique identifier), expect one person in people table with connected company_contacts"
+  
+  - description: "People table combines candidate_data and contact_data"
+    impact: "3_people_rcrm model unions both tables and deduplicates by email/phone/LinkedIn"
+  
+  - description: "Work history can be in multiple tables (work_history_1_data through work_history_6_data, or work_history_data)"
+    impact: "Experiences model must check which tables exist and union them"
+  
+  - description: "Education can be in multiple tables (education_1_data through education_6_data, or education_data)"
+    impact: "Educations model must check which tables exist and union them"
+  
+  - description: "Timestamps are stored as Unix epoch seconds (bigint)"
+    impact: "Must convert using: timestamp 'epoch' + (value::bigint)*interval '1 second'"
+
+# Utility Models
+# Note: RecruitCRM doesn't have explicit utility models like Bullhorn
+# People are determined by the union of candidate_data and contact_data
+# Companies come directly from company_data
+
+# Notes
+notes: |
+  - People come from both candidate_data and contact_data tables
+  - Contacts are matched to candidates by email/phone/LinkedIn in person_identities model
+  - If a contact matches a candidate, they share the same person_id (candidate slug)
+  - If a contact doesn't match a candidate, they get a generated person_id ('cc' || contact_slug)
+  - Utility models are not used - people and companies are sourced directly from source tables
+  - Work history and education tables are dynamically discovered (work_history_1_data through work_history_6_data)
+  - All timestamps need conversion from Unix epoch seconds to ISO format
